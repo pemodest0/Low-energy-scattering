@@ -1,0 +1,25 @@
+# Empacotamento mínimo — permite "pip install -e ." na raiz do projeto.
+# Nome provisório; quando definirem o nome da plataforma com o Lucas e a
+# Patrícia (ver VISAO_PLATAFORMA.md), basta trocar aqui.
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lab-espalhamento"
+version = "1.11.0"
+description = "Laboratório numérico de espalhamento de baixa energia (reprodução de RBEF 45, e20230079)"
+authors = [{ name = "Pedro Henrique Modesto", email = "pedrohenriquemodesto4@gmail.com" }]
+requires-python = ">=3.9"
+dependencies = ["numpy", "scipy", "matplotlib"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+notebooks = ["jupyter"]
+app = ["streamlit", "pandas"]
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
