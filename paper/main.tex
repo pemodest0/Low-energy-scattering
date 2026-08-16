@@ -1,0 +1,122 @@
+% ============================================================================
+%  Two-body low-energy scattering — working draft
+%  Pedro Henrique Gesualdo Modesto — IFSC/USP
+%
+%  HOW TO BUILD:      latexmk -pdf main.tex
+%  HOW TO CLEAN:      latexmk -c
+%
+%  YOU NEVER TYPE A NUMBER IN THIS FILE.
+%  Every table comes from tables/*.tex and every figure from figures/*.pdf,
+%  both written by notebooks/2_dois_corpos/two_body_scattering.ipynb.
+%  Re-run the notebook and this document updates itself.
+% ============================================================================
+% --- Document class -------------------------------------------------------
+% article compiles everywhere, so the draft is never blocked. When you submit
+% to a Physical Review journal, comment the line below and uncomment the other:
+\documentclass[11pt,a4paper]{article}
+% \documentclass[twocolumn,amsmath,amssymb,aps,prl]{revtex4-2}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}  % equations
+\usepackage{graphicx}         % \includegraphics
+\usepackage{booktabs}         % nicer horizontal rules
+\usepackage{geometry}         % sane margins
+\usepackage{hyperref}         % clickable cross-references
+\geometry{margin=2.5cm}
+\graphicspath{{figures/}}     % so \includegraphics{fig1_potentials} just works
+
+% article has no \affiliation; this fakes it well enough for a draft.
+\newcommand{\affiliation}[1]{\\ \small\textit{#1}}
+
+\begin{document}
+
+\title{Shape independence of two-body low-energy observables:\\
+       a numerical study across four model potentials}
+
+\author{Pedro Henrique Gesualdo Modesto \and Lucas Madeira
+        \affiliation{S\~ao Carlos Institute of Physics, University of S\~ao Paulo}}
+\date{\today}
+
+\maketitle
+
+\begin{abstract}
+% TODO (write this LAST, after the conclusions).
+% Formula that works: context / gap / what we did / the number / what it means.
+Placeholder abstract.
+\end{abstract}
+
+% ============================================================================
+\section{Introduction}
+% Placeholder citations so BibTeX has something to do until the text exists.
+The reference calculation is Ref.~\cite{macedolima2023}; the physical inputs
+come from Refs.~\cite{hackenburg2006,cencek2012}; the three-body continuation
+follows Ref.~\cite{madeira2021}.
+% TODO. Three paragraphs is enough:
+%   1. At low energy only a and r0 survive. Why that matters for cold atoms.
+%   2. The open question: how well does it hold, and where does it break?
+%   3. What this work does, and the headline number (agreement to ~1%).
+% ============================================================================
+
+\section{Method}
+\subsection{Radial equation and conventions}
+% TODO. hbar = mu_red = 1, u'' = 2(V-E)u, lengths in fm.
+
+\subsection{Extracting $a$ and $r_0$}
+% TODO. Straight line outside the range; Simpson for the r0 integral;
+% grid aligned to the well edge; Numerov degrades on a discontinuity.
+
+\subsection{The inverse problem}
+% TODO. Nested bisection; the root is on 1/a, never on a; node counting.
+% Figure 5b is the argument — put it here.
+
+% ============================================================================
+\section{Results}
+
+\input{tables/literature.tex}   % everything taken from outside, with sources
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\columnwidth]{fig1_potentials}
+  \caption{The four model potentials, all tuned to unitarity.}
+  \label{fig:potentials}
+\end{figure}
+
+\input{tables/tuning.tex}       % 12 fits vs. the published parameters
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\columnwidth]{fig3_bound_states}
+  \caption{Deviation from the measured binding energy. The shaded band is
+           $\pm1\%$.}
+  \label{fig:bound}
+\end{figure}
+
+\input{tables/deuteron.tex}
+\input{tables/helium.tex}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\columnwidth]{fig5_parameter_map}
+  \caption{Level sets of $1/a$ and $r_0$; the tuning solution is their crossing.}
+  \label{fig:map}
+\end{figure}
+
+% ============================================================================
+\section{Discussion}
+% TODO. The one real finding to defend:
+%   |a|/r0 controls everything. Deuteron 3.1 -> zero range misses by 36%.
+%   Helium 11.3 -> misses by 8.6%. Adding r0 fixes both to <1%.
+%   The residual ~1% spread between potentials IS the shape dependence.
+
+\section{Conclusions}
+% TODO.
+
+\section*{Acknowledgments}
+This work was supported by CAPES.
+
+% ============================================================================
+% Bibliography: run  latexmk -pdf main.tex  and it handles BibTeX for you.
+\bibliographystyle{unsrt}
+\bibliography{references}
+\end{document}

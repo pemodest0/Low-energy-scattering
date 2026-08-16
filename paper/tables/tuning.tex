@@ -1,0 +1,24 @@
+\begin{table}[htbp]
+\centering
+\small
+\caption{Automatic tuning against Tables 3 and 4 of Macedo-Lima and Madeira (2023).}
+\label{tab:tuning}
+\begin{tabular}{lllllllllll}
+\hline
+case & potential & p1 & p1 published & p2 & p2 published & a & r0 & nodes & converged & max dev pct \\
+\hline
+neutron-neutron & Square well & 1.109 & 1.11 & 0.3911 & 0.3918 & -18.5 & 2.7 & 0 & True & 0.1901\\
+neutron-neutron & Modified Pöschl-Teller & 0.9071 & 0.9071 & 0.7996 & 0.7991 & -18.5 & 2.7 & 0 & True & 0.06533\\
+neutron-neutron & Gaussian & 1.212 & 1.212 & 0.5679 & 0.5672 & -18.5 & 2.7 & 0 & True & 0.1245\\
+neutron-neutron & Lennard-Jones & 9.76 & 9.867 & 3.005 & 3.088 & -18.5 & 2.7 & 0 & True & 2.7\\
+unitarity & Square well & 1.234 & 1.234 & 0.9998 & 1 & 4.616e+11 & 1 & 0 & True & 0.04152\\
+unitarity & Modified Pöschl-Teller & 1 & 1 & 2 & 2 & -2.031e+12 & 1 & 0 & True & 9.497e-09\\
+unitarity & Gaussian & 1.342 & 1.342 & 1.435 & 1.435 & -5.912e+12 & 1 & 0 & True & 0.02261\\
+unitarity & Lennard-Jones & 0.2646 & 0.2646 & 0.0003407 & 0.0003407 & 3.848e+12 & 1 & 0 & True & 0.003441\\
+deuteron & Square well & 1.759 & 1.758 & 0.4992 & 0.5 & 5.4 & 1.7 & 1 & True & 0.1674\\
+deuteron & Modified Pöschl-Teller & 1.424 & 1.439 & 0.886 & 0.8631 & 5.4 & 1.7 & 1 & True & 2.653\\
+deuteron & Gaussian & 1.911 & 1.91 & 0.6748 & 0.6754 & 5.4 & 1.7 & 1 & True & 0.08625\\
+deuteron & Lennard-Jones & 6.84 & 6.815 & 0.9128 & 0.9049 & 5.4 & 1.7 & 1 & True & 0.8746 \\
+\hline
+\end{tabular}
+\end{table}
