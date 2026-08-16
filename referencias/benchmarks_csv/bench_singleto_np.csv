@@ -1,0 +1,2 @@
+benchmark,a_alvo_fm,r0_alvo_fm,v_mPT,mu_mPT,a_obtido,r0_obtido,nos,convergiu,kappa_fm^-1,E_virtual_keV,conclusao
+singleto_np[23],-23.74,2.77,0.9234445878273952,0.7685662395406649,-23.740000000061535,2.769999999968808,0,True,-0.039916267057094015,-66.07618668658331,"kappa<0: estado VIRTUAL, nao ligado"

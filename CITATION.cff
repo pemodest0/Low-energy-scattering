@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+title: "Low-energy scattering numerical laboratory"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: "Gesualdo Modesto"
+    given-names: "Pedro Henrique"
+    affiliation: "Sao Carlos Institute of Physics (IFSC), University of Sao Paulo"
+year: 2026
+url: "https://github.com/pemodest0/Low-energy-scattering"
+references:
+  - type: article
+    title: "Scattering length and effective range of microscopic two-body potentials"
+    authors:
+      - family-names: "Macedo-Lima"
+        given-names: "Mathias"
+      - family-names: "Madeira"
+        given-names: "Lucas"
+    journal: "Revista Brasileira de Ensino de Fisica"
+    volume: 45
+    year: 2023
+    doi: "10.1590/1806-9126-RBEF-2023-0079"

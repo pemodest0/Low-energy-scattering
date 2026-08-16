@@ -1,0 +1,8 @@
+PDFs de artigos ficam AQUI e NUNCA vão para o repositório público.
+Já estão no .gitignore.
+
+Motivo: artigo fechado é material protegido por direito autoral. Acesso
+via USP (CAFe/VPN) é para uso pessoal, não para redistribuição.
+
+O que PODE ser versionado: os fichamentos (referencias/fichamentos/) e os
+números extraídos (referencias/BENCHMARKS.yaml), com citação da fonte.

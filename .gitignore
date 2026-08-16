@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+# lixo de compilacao do LaTeX
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.tmp
+# sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+# reparo do git
+.git_quebrado/
+
+# pasta de coisas aposentadas: fica so na maquina local
+arquivo/
