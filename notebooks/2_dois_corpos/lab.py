@@ -299,7 +299,7 @@ def tune(name, a_target, r0_target, strength, scale, nodes_target=None):
 
     A 2D Newton on both at once looks tidier and is worse: the level sets of
     1/a and r0 are nearly parallel over much of the plane, so its Jacobian is
-    ill-conditioned exactly where you need it.
+    ill-conditioned exactly where it matters.
 
     Returns strength, scale, a, r0, nodes, ok.
     """

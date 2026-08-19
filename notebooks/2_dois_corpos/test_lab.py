@@ -1,12 +1,12 @@
 """Checks for lab.py. Run it with either
 
     python test_lab.py           (prints a report)
-    pytest test_lab.py           (if you have pytest)
+    pytest test_lab.py           (when pytest is available)
 
-Every check compares against something we did NOT compute here: a closed form,
-an analytic condition, or a published table. None of them says "the same as
-last time" -- a test like that only proves the code is consistent with its own
-mistakes.
+Every check compares against something not computed here: a closed form, an
+analytic condition, or a published table. None of them asserts "the same as
+last time" -- a test like that only proves the code is consistent with its
+own mistakes.
 """
 import math
 

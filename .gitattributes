@@ -1,5 +1,6 @@
-# Normaliza a quebra de linha. Sem isto o Windows grava CRLF, o Mac grava LF,
-# e o git jura que voce mudou o arquivo inteiro quando voce nao mudou nada.
+# Normaliza a quebra de linha. Sem isto o Windows grava CRLF e o Mac grava LF,
+# e o git passa a marcar arquivos inteiros como modificados sem que nada tenha
+# mudado de fato.
 * text=auto eol=lf
 
 *.bat  text eol=crlf
