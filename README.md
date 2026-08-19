@@ -1,8 +1,7 @@
 # Low-energy two-body scattering
 
 Numerical laboratory for the low-energy limit of two-body scattering, built as
-the first stage of my MSc at the São Carlos Institute of Physics (IFSC-USP),
-under Lucas Madeira.
+the first stage of my MSc at the São Carlos Institute of Physics (IFSC-USP).
 
 **The question.** At low energy only two numbers survive, the scattering length
 `a` and the effective range `r0`. If four unrelated potentials are tuned to the
