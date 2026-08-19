@@ -22,6 +22,3 @@ desktop.ini
 arquivo/
 
 # paper: o PDF e os intermediarios sao gerados, nao versionados
-paper/main.pdf
-paper/main.bbl
-paper/main.blg

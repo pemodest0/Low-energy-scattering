@@ -26,5 +26,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest
-      - name: Run the 25-test safety net
-        run: python -m pytest tests/ -q --durations=10
+      - name: Run the checks
+        run: python -m pytest notebooks/2_dois_corpos/test_lab.py -q
