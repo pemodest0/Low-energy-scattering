@@ -40,7 +40,7 @@ Each notebook needs only the `.py` file sitting next to it. Nothing else.
 
 ```bash
 pip install -r requirements.txt
-jupyter lab notebooks/2_dois_corpos/two_body_scattering.ipynb   # about 5 s, Run All
+jupyter lab notebooks/2_dois_corpos/two_body_scattering.ipynb   # about 1 min, Run All
 python notebooks/2_dois_corpos/test_lab.py                      # the checks
 ```
 
