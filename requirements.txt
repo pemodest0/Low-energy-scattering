@@ -1,9 +1,8 @@
-# Pisos testados. Para reproduzir um resultado exato: pip freeze > requirements-lock.txt
+# Tested floors. To reproduce an exact result: pip freeze > requirements-lock.txt
 numpy>=1.24
 scipy>=1.11
 matplotlib>=3.7
-pandas>=2.0
-pyyaml>=6.0
+pandas>=2.0        # only to lay out the comparison tables in the notebook
+
+# Optional. test_lab.py also runs standalone: python test_lab.py
 pytest>=7.0
-streamlit>=1.28
-jinja2>=3.1.2   # DataFrame.to_latex(escape=True)

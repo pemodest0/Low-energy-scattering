@@ -1,29 +1,31 @@
 # -*- coding: utf-8 -*-
 """
-Equação de Schrödinger de livro-texto com a máquina do laboratório:
-ESTADOS LIGADOS (autovalores/autofunções) e TUNELAMENTO, sempre
-numérico × analítico.
+Textbook Schrodinger problems solved with the machinery of the laboratory:
+BOUND STATES (eigenvalues and eigenfunctions) and TUNNELLING, each one
+checked against a closed form.
 
-Equação resolvida (unidades com hbar = m = 1):
+Equation solved (units with hbar = m = 1):
 
     u''(x) = 2 [V(x) - E] u(x)
 
-- Estados ligados: "shooting" — u(x0) = 0, marcha com Numerov até x1;
-  E é autovalor quando u(x1) = 0.  Varremos E, localizamos as trocas de
-  sinal de u(x1; E) e refinamos com brentq.  O número de nós rotula n.
-- Tunelamento: matriz de transferência construída com DUAS soluções
-  reais integradas através da barreira; T = 4/|M11+M22 + i(kM12 - M21/k)|².
+- Bound states: shooting. Set u(x0) = 0, march with Numerov up to x1;
+  E is an eigenvalue when u(x1) = 0. Sweep E, find the sign changes of
+  u(x1; E), refine with brentq. The node count labels n.
+- Tunnelling: transfer matrix built from TWO real solutions integrated
+  across the barrier; T = 4/|M11 + M22 + i(k M12 - M21/k)|^2.
 
-Sistemas com resposta exata (validação nos testes):
-  oscilador harmônico  V = x²/2        -> E_n = n + 1/2
-  hidrogênio (radial)  V = -1/r        -> E_n = -1/(2n²)   (unid. atômicas)
-  Morse                V = D(1-e^{-a(r-re)})² - D
-                       -> E_n = -D + w(n+½) - w²(n+½)²/(4D),  w = a√(2D)
-  barreira retangular  T analítico com sinh²(kappa L)
+Systems with an exact answer, which is what makes them worth solving:
+  harmonic oscillator  V = x^2/2       -> E_n = n + 1/2
+  hydrogen (radial)    V = -1/r        -> E_n = -1/(2n^2)   (atomic units)
+  Morse                V = D(1-e^{-a(r-re)})^2 - D
+                       -> E_n = -D + w(n+1/2) - w^2(n+1/2)^2/(4D),
+                          w = a sqrt(2D)
+  square barrier       T in closed form, sinh^2(kappa L)
 
-Conexões com o mestrado: o oscilador é a ARMADILHA dos átomos frios
-(confinamento 3D->2D = oscilador anisotrópico); o hidrogênio usa a MESMA
-equação radial u(r) do espalhamento; o Morse é o primo do He2/LJ.
+Why these three and not others: the oscillator is the TRAP of a cold atomic
+gas (3D->2D confinement is an anisotropic oscillator); hydrogen uses the SAME
+radial equation u(r) as the scattering problem; the Morse potential is the
+close relative of the He2 / Lennard-Jones well.
 """
 import math
 
@@ -31,88 +33,83 @@ import numpy as np
 from scipy.optimize import brentq
 
 
-# ------------------------------------------------ marcha de Numerov
-def _integra(Veff, E, x0, x1, dx):
-    """u'' = 2(Veff-E)u com u(x0)=0, u(x0+dx)=1e-8; devolve (x, u)."""
+# ------------------------------------------------------- Numerov march
+def _march(Veff, E, x0, x1, dx):
+    """u'' = 2(Veff-E)u with u(x0)=0, u(x0+dx)=1e-8; returns (x, u)."""
     n = int(round((x1 - x0) / dx)) + 1
     x = x0 + dx * np.arange(n)
-    W = -2.0 * (Veff(x) - E)                 # u'' = -W u
+    W = -2.0 * (Veff(x) - E)                 # so that u'' = -W u
     u = np.empty(n)
     u[0], u[1] = 0.0, 1e-8
     h2 = dx * dx / 12.0
     for i in range(1, n - 1):
         u[i + 1] = (2.0 * u[i] * (1.0 - 5.0 * h2 * W[i])
                     - u[i - 1] * (1.0 + h2 * W[i - 1])) / (1.0 + h2 * W[i + 1])
-        if abs(u[i + 1]) > 1e250:
+        if abs(u[i + 1]) > 1e250:             # rescale before overflow
             u[: i + 2] /= 1e250
     return x, u
 
 
-def _nos(u):
-    s = np.sign(u[np.abs(u) > 0])
-    return int(np.count_nonzero(s[1:] * s[:-1] < 0)) - 1   # ignora u(x1)~0
-
-
-# ------------------------------------------------ autovalores (shooting)
-def _conta_nos_E(V, E, x0, x1, dx):
-    _, u = _integra(V, E, x0, x1, dx)
+# --------------------------------------------------- eigenvalues (shooting)
+def _nodes_and_end(V, E, x0, x1, dx):
+    _, u = _march(V, E, x0, x1, dx)
     s = np.sign(u[np.abs(u) > 0])
     return int(np.count_nonzero(s[1:] * s[:-1] < 0)), u[-1]
 
 
-def autovalor_n(V, n, x0, x1, E_min, E_max, dx=2e-3):
-    """E_n (estado com n nós) por bisseção na CONTAGEM DE NÓS + brentq.
+def eigenvalue(V, n, x0, x1, E_min, E_max, dx=2e-3):
+    """E_n, the state with n nodes, by bisection on the NODE COUNT + brentq.
 
-    Teorema da oscilação: o nº de nós de u(x; E) em (x0, x1) é o nº de
-    autovalores abaixo de E.  Bisseção até encurralar a transição
-    n -> n+1 nós; dentro desse intervalo u(x1; E) troca de sinal
-    exatamente uma vez -> brentq.  ~40 integrações por estado.
+    The oscillation theorem for Sturm-Liouville problems: the number of nodes
+    of u(x; E) in (x0, x1) equals the number of eigenvalues below E. So bisect
+    until the n -> n+1 transition is cornered; inside that bracket u(x1; E)
+    changes sign exactly once, which is what brentq needs. About 40
+    integrations per state.
     """
     lo, hi = E_min, E_max
-    for _ in range(60):                       # encurrala a transição de nós
+    for _ in range(60):                       # corner the node transition
         mid = 0.5 * (lo + hi)
-        nos, _ = _conta_nos_E(V, mid, x0, x1, dx)
-        if nos <= n:
+        nodes, _ = _nodes_and_end(V, mid, x0, x1, dx)
+        if nodes <= n:
             lo = mid
         else:
             hi = mid
         if hi - lo < 1e-9 * max(1.0, abs(hi)):
             break
-    f = lambda E: _integra(V, E, x0, x1, dx)[1][-1]
-    # u(x1) muda de sinal ao cruzar o autovalor dentro de [lo-, hi+]
+    f = lambda E: _march(V, E, x0, x1, dx)[1][-1]
+    # u(x1) changes sign on crossing the eigenvalue, somewhere in [lo-, hi+]
     eps = max(1e-8, 1e-6 * (E_max - E_min))
     a, b = lo - eps, hi + eps
     fa, fb = f(a), f(b)
-    if fa * fb > 0:                           # salvaguarda: alarga um pouco
+    if fa * fb > 0:                           # safeguard: widen the bracket
         a, b = lo - 100 * eps, hi + 100 * eps
-        fa, fb = f(a), f(b)
     return brentq(f, a, b, xtol=1e-12, rtol=1e-12)
 
 
-def autovalores(V, x0, x1, E_min, E_max, n_estados=4, dx=2e-3):
-    """Lista [(E_n, n)] para n = 0 .. n_estados-1."""
-    return [(autovalor_n(V, n, x0, x1, E_min, E_max, dx), n)
-            for n in range(n_estados)]
+def eigenvalues(V, x0, x1, E_min, E_max, n_states=4, dx=2e-3):
+    """List of (E_n, n) for n = 0 .. n_states-1."""
+    return [(eigenvalue(V, n, x0, x1, E_min, E_max, dx), n)
+            for n in range(n_states)]
 
 
-def autofuncao(V, E, x0, x1, dx=1e-3):
-    """Autofunção normalizada (norma L2 = 1) para energia E."""
-    x, u = _integra(V, E, x0, x1, dx)
+def eigenfunction(V, E, x0, x1, dx=1e-3):
+    """Eigenfunction normalised to L2 norm 1, at energy E."""
+    x, u = _march(V, E, x0, x1, dx)
     u = u / math.sqrt(np.trapezoid(u * u, x))
     return x, u
 
 
-# ----------------------------------------------------- sistemas canônicos
-def V_oscilador(x):
+# ------------------------------------------------------- the four systems
+def V_oscillator(x):
     return 0.5 * np.asarray(x, dtype=float)**2
 
 
-def E_oscilador(n):
+def E_oscillator(n):
     return n + 0.5
 
 
-def V_hidrogenio(l=0):
-    """V efetivo radial do H em unidades atômicas: -1/r + l(l+1)/2r²."""
+def V_hydrogen(l=0):
+    """Effective radial potential of H in atomic units: -1/r + l(l+1)/2r^2."""
     def V(r):
         r = np.asarray(r, dtype=float)
         rs = np.where(r > 0, r, 1e-12)
@@ -120,7 +117,7 @@ def V_hidrogenio(l=0):
     return V
 
 
-def E_hidrogenio(n):
+def E_hydrogen(n):
     return -0.5 / n**2
 
 
@@ -137,21 +134,21 @@ def E_morse(n, D=10.0, a=1.0):
 
 
 def n_max_morse(D=10.0, a=1.0):
-    """Número de níveis ligados: n <= sqrt(2D)/a - 1/2."""
+    """How many bound levels the well holds: n <= sqrt(2D)/a - 1/2."""
     return int(math.floor(math.sqrt(2.0 * D) / a - 0.5))
 
 
-# ------------------------------------------------------- tunelamento
-def transmissao(V, E, x0, x1, dx=1e-4):
-    """T(E) por matriz de transferência: integra duas soluções reais
-    (ICs (1,0) e (0,1)) através de [x0,x1], com ondas planas fora
-    (V=0, k=sqrt(2E)).  T = 4/|M11+M22 + i(k M12 - M21/k)|²."""
+# ----------------------------------------------------------- tunnelling
+def transmission(V, E, x0, x1, dx=1e-4):
+    """T(E) by transfer matrix: integrate two real solutions, with initial
+    conditions (1,0) and (0,1), across [x0,x1], matching plane waves outside
+    (V=0, k=sqrt(2E)). T = 4/|M11 + M22 + i(k M12 - M21/k)|^2."""
     n = int(round((x1 - x0) / dx)) + 1
     x = x0 + dx * np.arange(n)
     W = -2.0 * (V(x) - E)
     h2 = dx * dx / 12.0
 
-    def marcha(u0, u1):
+    def march(u0, u1):
         u = np.empty(n)
         u[0], u[1] = u0, u1
         for i in range(1, n - 1):
@@ -159,15 +156,17 @@ def transmissao(V, E, x0, x1, dx=1e-4):
                         - u[i - 1] * (1.0 + h2 * W[i - 1])) / (1.0 + h2 * W[i + 1])
         return u
 
-    # solução A: y(x0)=1, y'(x0)=0 ; solução B: y(x0)=0, y'(x0)=1
-    # (derivada inicial via passo de Taylor com y'' = -W y)
-    yA = marcha(1.0, 1.0 + 0.5 * dx * dx * (-W[0]))
-    yB = marcha(0.0, dx * (1.0 + dx * dx * (-W[1]) / 6.0))
-    # derivada EM x1 por estêncil unilateral de 5 pontos, O(dx^4)
+    # solution A: y(x0)=1, y'(x0)=0 ; solution B: y(x0)=0, y'(x0)=1
+    # (the second point comes from a Taylor step using y'' = -W y)
+    yA = march(1.0, 1.0 + 0.5 * dx * dx * (-W[0]))
+    yB = march(0.0, dx * (1.0 + dx * dx * (-W[1]) / 6.0))
+
+    # derivative AT x1 by a one-sided 5-point stencil, order dx^4:
     # f'(x_N) = (25 f_N - 48 f_{N-1} + 36 f_{N-2} - 16 f_{N-3} + 3 f_{N-4})/(12 dx)
     def deriv(y):
         return (25 * y[-1] - 48 * y[-2] + 36 * y[-3]
                 - 16 * y[-4] + 3 * y[-5]) / (12 * dx)
+
     M11, M21 = yA[-1], deriv(yA)
     M12, M22 = yB[-1], deriv(yB)
     k = math.sqrt(2.0 * E)
@@ -175,18 +174,18 @@ def transmissao(V, E, x0, x1, dx=1e-4):
     return 4.0 / abs(den)**2
 
 
-def V_barreira(V0=5.0, L=1.0):
+def V_barrier(V0=5.0, L=1.0):
     def V(x):
         x = np.asarray(x, dtype=float)
         return np.where((x >= 0) & (x <= L), V0, 0.0)
     return V
 
 
-def T_barreira_analitico(E, V0=5.0, L=1.0):
-    """Barreira retangular exata (E < V0 usa sinh; E > V0 usa sin)."""
+def T_barrier_exact(E, V0=5.0, L=1.0):
+    """Square barrier, closed form. Below the top the answer carries sinh,
+    above it sin, and exactly at E = V0 both degenerate to the same limit."""
     if E == V0:
-        k2L = math.sqrt(2.0 * E) * L
-        return 1.0 / (1.0 + (k2L / 2.0)**2 * 0 + (math.sqrt(2*E)*L/2)**2)  # limite
+        return 1.0 / (1.0 + V0 * L * L / 2.0)
     if E < V0:
         kap = math.sqrt(2.0 * (V0 - E))
         s = math.sinh(kap * L)
