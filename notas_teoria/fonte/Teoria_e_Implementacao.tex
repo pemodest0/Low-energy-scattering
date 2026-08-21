@@ -203,12 +203,35 @@ class LennardJones:
         return 0.5 * (self.C12 / r ** 12 - self.C6 / r ** 6)
 \end{lstlisting}
 
-\subsection*{A armadilha do fator $\tfrac12$}
+\subsection*{O fator $\tfrac12$ do Lennard-Jones: divergência com o artigo}
 
-O $\tfrac12$ no Lennard-Jones é \textbf{convenção}, não física. Boa parte da
-literatura escreve $C_{12}/r^{12}-C_6/r^6$ sem ele, o que desloca $C_6$ por um
-fator dois --- e o resultado continua \emph{parecendo} certo. O artigo de
-referência usa o $\tfrac12$, então o código usa também.
+A Eq.~(121) de~\cite{rbef} é
+\[ V_{LJ}(r) = \frac{\hbar^2}{m_r}\left(\frac{C_{12}}{r^{12}} - \frac{C_6}{r^6}\right), \]
+que nas unidades usadas aqui vale $C_{12}/r^{12}-C_6/r^6$, \textbf{sem} o
+$\tfrac12$. Tomada ao pé da letra, ela não reproduz a Tabela~4 do próprio
+artigo. Com os parâmetros publicados para o dêuteron ($C_{12}=0{,}90485319$,
+$C_6=6{,}81472$):
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+& $a$ (fm) & $r_0$ (fm) \\
+\midrule
+Tabela 4 do artigo & $5{,}4$ & $1{,}70$ \\
+com o $\tfrac12$ & $5{,}405$ & $1{,}699$ \\
+sem o $\tfrac12$ & $1{,}435$ & $1{,}412$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+As Eqs.~(70) e (120), do poço e do gaussiano, carregam o mesmo prefator
+$\hbar^2/m_r$ e reproduzem a Tabela~3 exatamente como impressas. A discrepância
+é específica da Eq.~(121), e a leitura mais provável é que o denominador seja
+$2m_r$.
+
+\pq{É o tipo de detalhe que passa despercebido porque o resultado \emph{parece}
+certo de qualquer jeito: as curvas têm a forma esperada. Só a comparação
+numérica com a tabela publicada denuncia.}
 
 % ======================================================================
 \section{Numerov: o integrador}
@@ -470,8 +493,11 @@ $5{,}6\times10^{-12}$.}
 \section{Contar estados ligados sem procurá-los}
 
 O código conta estados ligados contando \emph{zeros da solução de energia zero}.
-Isso é o teorema de Levinson, e é surpreendente: a solução de espalhamento, em
-$E=0$, sabe quantos estados ligados o potencial tem.
+É surpreendente: a solução de espalhamento, em $E=0$, sabe quantos estados
+ligados o potencial tem. O artigo trata isso como verificação obrigatória
+---~\emph{``checking the number of nodes of the radial function is necessary to
+guarantee that it is indeed the situation we wanted to reproduce''}~---,
+esperando $u(r)$ sem nós para $a<0$ e com um nó para $a>0$.
 
 Há uma sutileza. Além da borda a solução é a reta $g_0 = 1 - r/a$, que cruza o
 zero em $r = a$. Se $a > R$ esse zero é físico e conta. Se $a$ é efetivamente

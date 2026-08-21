@@ -28,8 +28,9 @@ THE ONE IDEA
 SOURCES
     [1] Macedo-Lima, M.; Madeira, L. Rev. Bras. Ensino Fis. 45, e20230079 (2023)
         doi:10.1590/1806-9126-RBEF-2023-0079
-        The four potentials (Eqs. 74, 116, 118, 120), the targets and published
-        parameters (Tables 2, 3, 4), and the square-well closed forms (80, 92).
+        The four potentials (Eqs. 70, 116, 120, 121), the targets (Table 2), the
+        published parameters (Tables 3 and 4), and the square-well closed
+        forms (Eqs. 80 and 92).
     [2] Hackenburg, R. W. Phys. Rev. C 73, 044002 (2006)
         doi:10.1103/PhysRevC.73.044002
         Deuteron a, r0 and binding energy. Ref. [23] of [1].
@@ -45,6 +46,10 @@ from scipy.optimize import brentq
 # Below V_ZERO we treat the potential as gone. Above V_CORE the Lennard-Jones
 # core is too steep to integrate through, and the wavefunction is zero there
 # anyway, so we start outside it.
+#
+# [1] prescribes V(r_min) ~ 1e10 for this cut. We use 1e5 because it was
+# measured to be already converged: r0 changes by 2e-6 between 1e4 and 1e6,
+# while 1e3 is wrong by 0.2%. Starting deeper only costs stiffness.
 V_ZERO = 1e-12
 V_CORE = 1e5
 
@@ -57,7 +62,7 @@ V_CORE = 1e5
 #  shape, so no search is needed.
 # =============================================================================
 class Well:
-    """V = -v mu^2 inside r < R = 1/mu, zero outside.  Eq. (74) of [1].
+    """V = -v mu^2 inside r < R = 1/mu, zero outside.  Eq. (70) of [1].
 
     Discontinuous on purpose: it is the hard case for any numerical method.
     """
@@ -90,7 +95,7 @@ class PoschlTeller:
 
 
 class Gaussian:
-    """V = -v mu^2 exp(-mu^2 r^2).  Eq. (118) of [1].  Tail dies very fast."""
+    """V = -v mu^2 exp(-mu^2 r^2).  Eq. (120) of [1].  Tail dies very fast."""
     name = "Gaussian"
 
     def __init__(self, v, mu):
@@ -105,11 +110,23 @@ class Gaussian:
 
 
 class LennardJones:
-    """V = (1/2) (C12/r^12 - C6/r^6).  Eq. (120) of [1].  Hard core + vdW tail.
+    """V = (1/2) (C12/r^12 - C6/r^6).  Hard core plus van der Waals tail.
 
-    The 1/2 is a CONVENTION and it is not universal: much of the literature
-    writes C12/r^12 - C6/r^6 without it, which shifts C6 by a factor of two
-    while the result still looks correct. [1] uses the 1/2, so we do.
+    THE FACTOR 1/2 IS NOT IN THE PAPER, AND IT IS NEEDED.
+
+    Eq. (121) of [1] reads V = (hbar^2 / m_r)(C12/r^12 - C6/r^6). In the units
+    used here that is C12/r^12 - C6/r^6, with no 1/2. Taken literally it does
+    not reproduce Table 4 of the same paper -- measured, for the deuteron row:
+
+        published C12 = 0.90485319, C6 = 6.81472, and Table 4 reports
+        a = 5.4 fm, r0 = 1.70 fm
+
+        with the 1/2:  a = 5.405,  r0 = 1.699   <- reproduces Table 4
+        without it:    a = 1.435,  r0 = 1.412   <- does not
+
+    Eqs. (70) and (120), for the well and the Gaussian, carry the same
+    hbar^2/m_r prefactor and DO reproduce Table 3 as printed. So the mismatch
+    is specific to Eq. (121); the likely reading is 2 m_r in its denominator.
     """
     name = "Lennard-Jones"
 
@@ -223,7 +240,11 @@ def scattering(pot):
     s = r_start
     r0 = r0 + 2.0 * (s - s ** 2 / a + s ** 3 / (3.0 * a ** 2))
 
-    # Every zero of the E = 0 solution is one bound state (Levinson's theorem).
+    # Count the zeros of the E = 0 solution: they give the number of bound
+    # states. [1] uses this as a mandatory check -- "checking the number of
+    # nodes of the radial function is necessary to guarantee that it is indeed
+    # the situation we wanted to reproduce" -- expecting a nodeless u(r) for
+    # a < 0 and one node for a > 0.
     nodes = 0
     for i in range(1, POINTS - 1):
         if u[i] * u[i + 1] < 0.0:
@@ -371,7 +392,9 @@ def E_finite_range(a, r0, h2_2mu):
 # =============================================================================
 #  Tabulated data
 # =============================================================================
-# Table 2 of [1]: the three targets. "nodes" is the bound-state count required.
+# Table 2 of [1]: the three targets. The bound-state count is NOT a column of
+# that table -- it comes from the text of Sec. 4.5, which asks for a nodeless
+# u(r) when a < 0 and one node when a > 0.
 TARGETS = {
     "nn":        {"a": -18.5,     "r0": 2.7, "nodes": 0},   # neutron-neutron
     "unitarity": {"a": math.inf,  "r0": 1.0, "nodes": 0},   # |a| -> infinity
