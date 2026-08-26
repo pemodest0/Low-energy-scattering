@@ -96,6 +96,54 @@ def test_inferred_constants_match_the_literature():
     assert abs(lab.SYSTEMS["he4_dimer"]["h2_2mu"] - 12.12) < 0.05
 
 
+def test_scale_invariance():
+    """Rescaling every length by L must take (a, r0) to (L a, L r0).
+
+    This is a property of the physics, not a stored number, so the test needs
+    no reference value: it asserts an invariant the code must satisfy on its
+    own terms. That is what makes it strong.
+
+    It is also the test that would have caught the exponent bug. The notes used
+    to say C12 -> L^6 C12, which comes from treating V as dimensionless. Since
+    [V_code] = fm^-2, the rescaled potential must obey V'(L r) = V(r) / L^2,
+    which gives C6 -> L^4 C6 and C12 -> L^10 C12. With the wrong exponent this
+    test fails by 41% at L = 2.
+
+    The tolerances differ by potential, and the reason is itself a result. The
+    physics is exactly scale invariant; our truncation is not. R and r_min come
+    from the ABSOLUTE thresholds V_ZERO and V_CORE, while V rescales as 1/L^2,
+    so the cut radii do not follow L:
+
+        well          R = 1/mu, exact             -> violation ~1e-13
+        Poschl-Teller R from acosh, logarithmic   -> ~1e-10
+        Gaussian      R from sqrt(log), log       -> ~1e-11
+        Lennard-Jones R from a power law,
+                      R ~ L^(2/3), r_min ~ L^(5/6) -> ~3e-4
+
+    So the Lennard-Jones is six orders worse than the others, and it is the
+    truncation talking, not the solver. Making the cut dimensionless -- |V|R^2
+    is the natural choice, since [V_code] = fm^-2 -- would restore the symmetry,
+    and belongs in the error budget rather than here.
+    """
+    reescala = {
+        "well":  lambda p1, p2, L: (p1, p2 / L),
+        "mpt":   lambda p1, p2, L: (p1, p2 / L),
+        "gauss": lambda p1, p2, L: (p1, p2 / L),
+        "lj":    lambda p1, p2, L: (p1 * L ** 4, p2 * L ** 10),
+    }
+    tolerancia = {"well": 1e-9, "mpt": 1e-8, "gauss": 1e-8, "lj": 1e-3}
+    for name in lab.POTENTIALS:
+        pub = lab.PUBLISHED[("deuteron", name)]
+        a0, r00, n0 = lab.scattering(lab.POTENTIALS[name](pub["p1"], pub["p2"]))
+        tol = tolerancia[name]
+        for L in (0.5, 2.0, 3.0):
+            p1, p2 = reescala[name](pub["p1"], pub["p2"], L)
+            a, r0, nodes = lab.scattering(lab.POTENTIALS[name](p1, p2))
+            assert abs(a / (L * a0) - 1) < tol, (name, L, "a", a, L * a0)
+            assert abs(r0 / (L * r00) - 1) < tol, (name, L, "r0", r0, L * r00)
+            assert nodes == n0, (name, L, "nodes")
+
+
 # =============================================================================
 #  3. The grid itself
 # =============================================================================

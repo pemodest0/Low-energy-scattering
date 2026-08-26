@@ -433,9 +433,11 @@ for system in SYSTEMS.values():
     system["h2_2mu"] = -system["E_zr"] * system["a"] ** 2
 
 # Starting points: the deuteron solution. The problem is scale invariant --
-# multiplying all lengths by L takes (a, r0) to (L a, L r0) -- so for another
-# system we divide the scale parameter by L, and C12 by L^6 because it
-# multiplies r^-12.
+# multiplying all lengths by L takes (a, r0) to (L a, L r0). Since [V_code] is
+# fm^-2, the rescaled potential must satisfy V'(L r) = V(r) / L^2. For the three
+# one-scale potentials that means dividing the scale parameter by L. For the
+# Lennard-Jones it means C6 -> L^4 C6 and C12 -> L^10 C12, which follows from
+# [C6] = fm^4 and [C12] = fm^10.
 GUESS = {"well": (1.7806, 0.48415), "mpt": (1.44397, 0.853766),
          "gauss": (1.93585, 0.652551), "lj": (7.8433, 1.27426)}
 

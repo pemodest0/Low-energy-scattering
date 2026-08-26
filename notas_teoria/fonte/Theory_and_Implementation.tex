@@ -42,6 +42,24 @@ Sec.~\ref{sec:autopsy}, because they are the most instructive part.
 \newpage
 
 % ======================================================================
+\section*{Revision history}
+
+\begin{center}
+\small
+\begin{tabular}{llp{9.2cm}}
+\toprule
+date & what & why \\
+\midrule
+2026-08-26 & $C_6\!\to\!L^4C_6$, $C_{12}\!\to\!L^{10}C_{12}$ &
+the old $L^6$ came from treating $V$ as dimensionless. Review by L.~Madeira.
+It also unblocked the helium Lennard-Jones, which had been silently dropped
+(Sec.~\ref{sec:helium-lj}). \\
+2026-08-26 & scale-invariance test added &
+the property that was wrong is directly testable; it now guards itself. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
 \section{What universality means here}
 \label{sec:universality}
 
@@ -720,14 +738,28 @@ Five dictionaries, all traceable:
 \end{center}
 
 \subsection{Scale invariance in \texttt{GUESS}}
+\label{sec:scale}
 
 The problem is scale invariant: multiplying all lengths by $L$ takes
 $(a, r_0)\to(La, Lr_0)$. So attacking another system only needs the guess
-rescaled:
+rescaled --- but the exponents follow from the units, not from the powers of
+$r$ alone. Since $[V_{\mathrm{code}}] = \mathrm{fm}^{-2}$, the rescaled
+potential must satisfy $V'(Lr) = V(r)/L^2$. For the repulsive term,
+\begin{equation*}
+  \frac{C_{12}'}{(Lr)^{12}} = \frac{1}{L^2}\,\frac{C_{12}}{r^{12}}
+  \quad\Longrightarrow\quad C_{12}' = L^{10}\,C_{12},
+\end{equation*}
+and the same argument on the attractive term gives $C_6' = L^4 C_6$. So
 \begin{equation}
-  \mu \;\to\; \frac{\mu}{L}, \qquad C_{12} \;\to\; C_{12}\,L^6 .
+  \mu \;\to\; \frac{\mu}{L}, \qquad
+  C_6 \;\to\; C_6\,L^{4}, \qquad
+  C_{12} \;\to\; C_{12}\,L^{10}.
 \end{equation}
-The $L^6$ is because $C_{12}$ multiplies $r^{-12}$.
+These are exactly $[C_6] = \mathrm{fm}^4$ and $[C_{12}] = \mathrm{fm}^{10}$ read
+backwards. An earlier version of these notes carried $C_{12} \to C_{12}L^6$,
+which comes from treating $V$ as dimensionless; it is wrong, and it misses
+$C_6$ entirely. The consequence was not cosmetic --- see
+Sec.~\ref{sec:helium-lj}.
 
 \subsection{The constant that is tabulated nowhere}
 
@@ -933,6 +965,47 @@ Sec.~\ref{sec:universality}, measured.
 The residual spread of about $1\%$ \emph{among} the potentials is the shape
 dependence --- the $O(k^4)$ terms, the only thing still distinguishing a square
 well from a Lennard-Jones once $a$ and $r_0$ are fixed.
+
+\subsection{The helium Lennard-Jones, and what the wrong exponent cost}
+\label{sec:helium-lj}
+
+The scaling rule of Sec.~\ref{sec:scale} is not decoration: it supplies the
+starting guess that the tuning begins from. With the wrong exponent the guess
+for the helium dimer was off by a factor of $443$ in \emph{both} coefficients,
+and --- worse --- it landed on the branch with \textbf{zero} bound states when
+the target has one:
+
+\begin{center}
+\begin{tabular}{lrrl}
+\toprule
+starting guess & $C_6$ & $C_{12}$ & what it gives \\
+\midrule
+$C_{12}L^6$, $C_6$ untouched & $7.84$ & $1.19\times10^{4}$ & $a=1.76$, $r_0=1.33$, 0 nodes \\
+$C_6L^4$, $C_{12}L^{10}$ & $3476$ & $5.27\times10^{6}$ & $a=24.8$, $r_0=7.995$, 1 node \\
+\midrule
+target & & & $a=90.4$, $r_0=8.0$, 1 node \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The correct rule arrives with $r_0$ already within $0.06\%$ of the target and on
+the right branch. The wrong one does not converge at all: it was left running
+for $170$~s without finishing, while the corrected guess converges in $83$~s.
+
+That non-convergence is the reason the Lennard-Jones was quietly absent from the
+helium row --- three potentials were run there, not four, and no note in these
+notes said so. With the exponents fixed the case runs, and it belongs with the
+others:
+\[
+  E(^4\mathrm{He}_2,\ \mathrm{Lennard\text{-}Jones}) = -1.627\ \mathrm{mK},
+  \qquad \text{measured } -1.620\ \mathrm{mK}.
+\]
+
+\textbf{The lesson is about the check, not the exponent.} Scale invariance is a
+\emph{property} the code must satisfy, so it can be tested directly: rescale
+every length by $L$, and $(a, r_0)$ must come back as $(La, Lr_0)$. That test is
+three lines, needs no reference value, and would have caught this immediately.
+It is now in \texttt{test\_lab.py}.
 
 \subsection{Accuracy achieved}
 
