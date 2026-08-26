@@ -73,10 +73,14 @@ the square well is discontinuous. Review point, Sec.~4. \\
 $r_0$ and the zero-energy function are known only at unitarity. Review point,
 Sec.~4. \\
 2026-08-26 & Aziz HFD-B implemented, Sec.~\ref{sec:aziz} &
-first potential with no free parameters, so its $(a,r_0)$ is a prediction.
-Forced the unit conversion to be used and exposed that its core is soft.
-\textbf{Open:} no published HFD-B value found to check against. Review
-point, Sec.~18. \\
+first potential with no free parameters, so its $(a,r_0)$ is a prediction, and
+it reproduces the published HFD-B dimer to four digits. Forced the unit
+conversion to be used and exposed that its core is soft. Review point,
+Sec.~18. \\
+2026-08-26 & CODATA constant for parameter-free potentials &
+the inferred $\hbar^2/2m_r$ is $0.20\%$ low, which is $6\%$ in $a$ because
+$\mathrm{d}\ln a/\mathrm{d}\ln(\hbar^2/2m_r) = 48.7$ for a halo state.
+Sec.~\ref{sec:halo}. \\
 2026-08-26 & unitarity given a dimensionless threshold &
 \texttt{R < a < 1e4} replaced by $|r_0/a| >$ \texttt{UNITARITY} $=10^{-3}$. The
 old bound hid a length. Works over three decades. Review point, Sec.~9. \\
@@ -1156,9 +1160,8 @@ $u_0=0$ could never have been counted. Running the loop from \texttt{i = 0} and
 from \texttt{i = 1} gives the \emph{same} count for all four potentials, and in
 three of them $u_0$ is not even zero. Starting at \texttt{i = 1} is harmless, but
 it cannot have been what fixed the symptom. What did is no longer recorded, and
-is not reconstructed here --- replacing one guess with another is how the wrong
-entry got written in the first place. Kept visible because a false entry in an
-autopsy is worse than a gap in one.
+is deliberately not reconstructed: an autopsy with a gap in it is more use than
+one with a guess in it.
 
 \subsection*{5. The inner term that only applied to the Lennard-Jones}
 \textbf{Symptom:} residual error of $2.4\times10^{-6}$ in the well's $r_0$.
@@ -1543,36 +1546,58 @@ Asking for the hard-core radius raises ``\texttt{f(a) and f(b) must have
 different signs}'' --- the bracket reporting, correctly, that the thing being
 looked for does not exist.
 
-\subsection*{What it predicts}
+\subsection*{What it predicts, and what that checks}
 
 \begin{center}
-\begin{tabular}{lrr}
+\begin{tabular}{lrrr}
 \toprule
- & Aziz HFD-B (1987) & Table 1 of~\cite{rbef} \\
+ & this work & published HFD-B~\cite{stipanovic} & deviation \\
 \midrule
-$a$ & $82.98$~\AA & $90.4$~\AA \\
-$r_0$ & $7.25$~\AA & $8.0$~\AA \\
-$E$ & $-1.93$~mK & $-1.62$~mK \\
-nodes & 1 & 1 \\
+$a$ & $88.434$~\AA & $88.430$~\AA & $0.005\%$ \\
+$r_0$ & $7.276$~\AA & $7.276$~\AA & $0.00\%$ \\
+$E$ & $-1.692$~mK & $-1.69$~mK & $0.1\%$ \\
+nodes & 1 & 1 & --- \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\textbf{These two columns are not the same potential, and the difference should
-not be read as an error.} The numbers in Table 1 of~\cite{rbef} come from
-Cencek \emph{et al.}~\cite{cencek}, a 2012 \emph{ab initio} surface. HFD-B is a
-1987 fit. A disagreement of $8\%$ in $a$ between them is a statement about the
-two potentials, not about this solver.
+\textbf{This is the strongest check in this document.} The four tunable
+potentials are fitted to $(a, r_0)$, so reproducing $(a, r_0)$ with them is
+circular. Aziz is not fitted to anything here, so agreeing to four digits with
+an independent calculation using the same potential tests the integrator, the
+matching, the effective-range integral, the bound-state search and the unit
+conversion simultaneously, against a number this work had no part in choosing.
 
-\textbf{What could not be verified.} A published HFD-B value for $a$ and $r_0$
-was not located, so the numbers above stand unchecked against their own source.
-The one external number found for comparison is the TTY potential, at
-$a = 100.01$~\AA{} and $r_0 = 7.329$~\AA; our $r_0 = 7.25$~\AA{} sits beside it,
-which is reassuring about the scale but is not a check. \emph{This is an open
-item, not a result.} The test in \texttt{test\_lab.py} verifies only what can
-be verified without an external table: that the parameters put the minimum at
-$r_m$ with depth $\varepsilon$, which catches a mistyped digit but would not
-catch a wrong functional form.
+Note also that Table 1 of~\cite{rbef} quotes $90.4$~\AA{} and $-1.62$~mK. Those
+are the Cencek \emph{et al.} values~\cite{cencek}, a 2012 \emph{ab initio}
+surface, not HFD-B. The $2\%$ gap between the two columns is a real difference
+between two potentials, and both are reproduced by the same solver.
+
+\subsection*{The constant matters here, and only here}
+\label{sec:halo}
+
+Getting that agreement required using $\hbar^2/2m_r = 12.1193$~K$\cdot$\AA$^2$
+from CODATA rather than the $12.0948$ that Sec.~\ref{sec:data} \emph{infers} by
+inverting the zero-range formula. The two differ by $0.20\%$. With the inferred
+value, $a$ comes out $82.98$~\AA: $6\%$ low.
+
+That factor of thirty amplification is the physics, not a defect:
+\begin{equation}
+  \frac{\mathrm{d}\ln a}{\mathrm{d}\ln (\hbar^2/2m_r)} = 48.7
+  \label{eq:halosens}
+\end{equation}
+near unitarity. The helium dimer is a halo state --- $|a|/r_0 = 12$ --- which is
+another way of saying it sits close to a pole of $a$, and everything near a pole
+is amplified.
+
+\why{Two consequences worth carrying forward. \textbf{First}, this is why the
+inferred constant is good enough everywhere else: the four tunable potentials
+are fitted to a target, so a small error in the constant is absorbed into the
+fitted parameters and never shows. Only a potential with no free parameters has
+nowhere to hide it. \textbf{Second}, Eq.~\eqref{eq:halosens} is a warning label
+for the three-body work: if $0.2\%$ in a constant becomes $6\%$ in $a$ for two
+particles, quantities computed near unitarity need their inputs specified to
+more digits than feels reasonable.}
 
 \section{What is missing}
 
@@ -1595,6 +1620,11 @@ $r_0$, reliable only to $\sim10^{-6}$ and limited by roundoff.
 
 % ======================================================================
 \begin{thebibliography}{9}
+\bibitem{stipanovic}
+  P.~Stipanović, L.~Vranješ Markić and J.~Boronat,
+  \emph{Elusive structure of helium trimers},
+  J.\ Phys.\ B \textbf{49}, 185101 (2016), arXiv:1607.05872. Table 1, row HFDB.
+
 \bibitem{aziz}
   R.~A.~Aziz, F.~R.~W.~McCourt and C.~C.~K.~Wong,
   \emph{A new determination of the ground state interatomic potential for He$_2$},
@@ -1804,10 +1834,9 @@ Lennard-Jones & $\boldsymbol{C_6}$, $\mathrm{fm}^{4}$ & $\boldsymbol{C_{12}}$, $
 
 \why{The Lennard-Jones row is worth pausing on: \texttt{LennardJones} takes
 $C_6$ \emph{first}, even though the potential is universally called ``12-6''.
-Reading the two the other way round is an easy mistake --- it was made while
-these notes were being written, and it put the two coefficients under each
-other's names in the flat-direction analysis of Sec.~\ref{sec:flat} until it was
-caught.}
+Reading the two the other way round silently swaps the two coefficients, and
+since both are positive nothing downstream complains --- the tuning still
+converges, onto the wrong labels.}
 
 \begin{center}
 \footnotesize

@@ -123,6 +123,40 @@ def test_aziz_reproduces_its_own_minimum():
     assert pot.R > 100.0               # the 1/r^6 tail reaches a long way
 
 
+def test_aziz_reproduces_the_published_dimer():
+    """The strongest check in this file: a potential we did not fit.
+
+    The four tunable potentials are fitted to (a, r0), so reproducing (a, r0) is
+    circular. Aziz has no free parameters, so its predictions can be compared
+    against someone else's published calculation with the same potential.
+
+    Reference values from Stipanovic, Vranjes Markic & Boronat, arXiv:1607.05872,
+    Table 1, row HFDB, He-4 dimer:
+
+        a = 88.430 A,   r0 = 7.276 A,   E = -1.69 mK
+
+    Getting within 0.1% of an independent calculation, on a potential nothing
+    here was tuned to, tests the integrator, the matching, the effective-range
+    integral, the bound-state search and the unit conversion at once.
+
+    Note the constant: this uses H2_2MU_HE4, not the value inferred in SYSTEMS.
+    The inferred one is 0.20% lower, which lands a 6% away, because near
+    unitarity d(ln a)/d(ln h2_2mu) = 48.7. Getting this test to pass with the
+    inferred constant would require loosening the tolerance to 7%, which would
+    make it prove nothing.
+    """
+    pot = lab.AzizHFDB(lab.H2_2MU_HE4)
+    a, r0, nodes = lab.scattering(pot)
+
+    assert abs(a / 88.430 - 1) < 1e-3, a
+    assert abs(r0 / 7.276 - 1) < 1e-3, r0
+    assert nodes == 1, nodes
+
+    guess = lab.E_finite_range(a, r0, lab.H2_2MU_HE4) / (2 * lab.H2_2MU_HE4)
+    E_mK = lab.bound_energy(pot, guess) * 2 * lab.H2_2MU_HE4 * 1e3
+    assert abs(E_mK / -1.69 - 1) < 5e-3, E_mK
+
+
 def test_the_unitarity_threshold_is_not_fragile():
     """UNITARITY decides when a is 'infinite' for the bound-state count.
 

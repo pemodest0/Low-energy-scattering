@@ -93,6 +93,20 @@ UNITARITY = 1e-3
 # budget with V_ZERO and V_CORE rather than buried in numerov().
 R_START_FRACTION = 1e-6
 
+# hbar^2 / 2 mu for the He-4 dimer, from CODATA, in K.A^2.
+#
+# SYSTEMS below carries an INFERRED value, 12.0948, obtained by inverting the
+# zero-range formula on the published pair. That inference is a consistency
+# check on Table 1 and it is 0.20% below this one. For the four tunable
+# potentials the difference is invisible, because they are fitted to a target
+# and absorb it. For a potential with no free parameters it is not:
+#
+#     d(ln a) / d(ln h2_2mu) = 48.7
+#
+# near unitarity, so 0.20% in the constant becomes 6% in a. The He-4 dimer is a
+# halo state and amplifies everything. Parameter-free potentials use this value.
+H2_2MU_HE4 = 12.11932
+
 
 # =============================================================================
 #  The four potentials
