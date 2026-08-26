@@ -156,8 +156,8 @@ def test_the_grid_is_already_converged():
 
     We halve rather than double on purpose. Total error is truncation, which
     falls with more points, plus roundoff, which grows with them, so there is
-    an optimum. The three purely attractive potentials sit at machine precision
-    and do not care. The Lennard-Jones does: past ~8000 points roundoff takes
+    an optimum. The three purely attractive potentials sit at machine precision,
+    1e-11, and do not care. The Lennard-Jones does: past ~8000 points roundoff takes
     over and r0 degrades again (-3e-5 at 32001, -3e-4 at 64001). POINTS is set
     at the optimum, so the meaningful question is whether we are converged
     coming from below, not what happens deeper into the roundoff.

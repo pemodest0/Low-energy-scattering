@@ -72,6 +72,24 @@ the square well is discontinuous. Review point, Sec.~4. \\
 2026-08-26 & Pöschl-Teller: closed form for $a$ only &
 $r_0$ and the zero-energy function are known only at unitarity. Review point,
 Sec.~4. \\
+2026-08-26 & units written as definitions &
+$V_{\mathrm{code}}=(m_r/\hbar^2)V_{\mathrm{phys}}$ and the same for $E$, plus
+$[V]=[E]=\mathrm{fm}^{-2}$ and the conversion for $V$. Five review points
+descend from this one. Sec.~2. \\
+2026-08-26 & finite range called a choice, not a property &
+only the square well has one; the others come from $|V(R)|=10^{-12}$.
+Sec.~3. \\
+2026-08-26 & $[C_6]=\mathrm{fm}^4$, $[C_{12}]=\mathrm{fm}^{10}$ written &
+same fact as the scaling exponents, read off the units. Sec.~4. \\
+2026-08-26 & $r_0$ no longer ``the size of the potential'' &
+it can be negative, and it is a statement about the wavefunction. Sec.~9. \\
+2026-08-26 & $x=\ln(r/r_*)$, $r_*=1$~fm &
+no logarithm of a dimensional quantity. App.~A1. \\
+2026-08-26 & $p_1$, $p_2$ defined, with units &
+including that \texttt{LennardJones} takes $C_6$ first. App.~B. \\
+2026-08-26 & every error labelled absolute or relative &
+plus $r_0/a$ as the dimensionless measure, which explains why zero range misses
+the deuteron by $36\%$ and helium by $8.6\%$. Sec.~18. \\
 2026-08-26 & figure caption $10^{10}\to10^{5}$ &
 $10^{10}$ is what the reference prescribes; the code uses $10^{5}$. Review
 point, Sec.~4. \\
@@ -186,13 +204,36 @@ The $s$-wave radial Schrödinger equation, written for $u(r) = r\,\psi(r)$, is
 \begin{equation}
   -\frac{\hbar^2}{2m_r}\,u''(r) + V(r)\,u(r) = E\,u(r),
 \end{equation}
-with $m_r = m_1m_2/(m_1+m_2)$ the reduced mass. The code sets
-$\hbar = m_r = 1$ and measures lengths in fm, so
+with $m_r = m_1m_2/(m_1+m_2)$ the reduced mass. The code works with rescaled
+quantities, defined explicitly as
+\begin{equation}
+  V_{\mathrm{code}} = \frac{m_r}{\hbar^2}\,V_{\mathrm{phys}},
+  \qquad
+  E_{\mathrm{code}} = \frac{m_r}{\hbar^2}\,E_{\mathrm{phys}},
+  \label{eq:codeunits}
+\end{equation}
+which turns the equation into
 \begin{equation}
   \boxed{\;u'' = 2\,\bigl(V - E\bigr)\,u\;}
   \label{eq:radial}
 \end{equation}
-which is the only equation the code ever solves, at $E = 0$ and at $E < 0$ alike.
+the only equation the code ever solves, at $E = 0$ and at $E < 0$ alike.
+
+\why{It is tempting to summarise this as ``$\hbar = m_r = 1$, lengths in fm''.
+That is imprecise, and the imprecision has consequences. Distances stay in fm;
+they are not rescaled. So Eq.~\eqref{eq:codeunits} does \emph{not} make
+$V_{\mathrm{code}}$ and $E_{\mathrm{code}}$ dimensionless --- it gives them
+units of inverse length squared:
+\[
+  [V_{\mathrm{code}}] = [E_{\mathrm{code}}] = \mathrm{fm}^{-2}.
+\]
+The honest one-line statement is: \emph{distances are expressed in fm, while
+energies and potentials are rescaled by $m_r/\hbar^2$, so their numerical units
+are} $\mathrm{fm}^{-2}$. Everything about the Lennard-Jones coefficients ---
+their units in Sec.~\ref{sec:potentials}, and the exponents in the scaling rule
+of Sec.~\ref{sec:scale} --- follows from that one line. Treating $V$ as
+dimensionless is exactly how the wrong exponent $C_{12}\to C_{12}L^6$ got into
+an earlier draft.}
 
 \subsection*{Back to physical units}
 
@@ -212,6 +253,15 @@ and since $\hbar^2/2m_r$ is the constant usually tabulated,
 \why{That factor of 2 is easy to lose. The check that would expose it is in
 Sec.~\ref{sec:data}: with it wrong, the inferred constant would not come out at
 $41.47$ MeV$\cdot$fm$^2$.}
+
+The potential converts by the same rule, and it is worth writing separately
+because it is what the Lennard-Jones discussion of Sec.~\ref{sec:potentials}
+turns on:
+\begin{equation}
+  V_{\mathrm{phys}}(r) = \frac{\hbar^2}{m_r}\,V_{\mathrm{code}}(r)
+  = 2\left(\frac{\hbar^2}{2m_r}\right) V_{\mathrm{code}}(r).
+  \label{eq:vconversion}
+\end{equation}
 
 % ======================================================================
 \section{The one idea: do not integrate what is already known}
@@ -246,6 +296,7 @@ known exactly, and paying for it in numerical error.}
 
 % ======================================================================
 \section{The four potentials}
+\label{sec:potentials}
 
 The choice is not decorative: each shape stresses a different numerical
 hypothesis.
@@ -274,10 +325,26 @@ Lennard-Jones, Eq.~(121) & $\tfrac12(C_{12}/r^{12} - C_6/r^6)$ & \textbf{hard co
 
 \subsection{The range $R$, in closed form}
 
-Each class needs to know where its potential stops acting. For the well that is
-exact, $R = 1/\mu$. For the other three the potential never truly vanishes ---
-a Gaussian decays forever --- so $R$ is defined as the radius where
-$|V(R)| = \texttt{V\_ZERO}$, and that equation is solved \emph{on paper}:
+Each class needs to know where its potential stops acting. \textbf{Only one of
+the four actually has such a radius.} The square well is the exception: it is
+identically zero beyond $R = 1/\mu$, so its range is a property of the
+potential. The other three never truly vanish --- a Gaussian decays forever, a
+van der Waals tail falls off as a power law --- and for them a finite range does
+not exist as a mathematical fact. What exists is a \emph{choice}:
+\begin{equation}
+  |V(R)| = \texttt{V\_ZERO} = 10^{-12},
+  \label{eq:rangechoice}
+\end{equation}
+a truncation we impose because the integration has to stop somewhere. Calling
+it ``the range'' is shorthand, and the number $10^{-12}$ is a knob, not a
+constant of nature: it belongs in the error budget alongside \texttt{V\_CORE},
+which is the same kind of choice at the other end. Sec.~\ref{sec:helium-lj}
+shows one consequence --- because these thresholds are absolute while $V$
+rescales as $1/L^2$, the truncated problem is not exactly scale invariant even
+though the physics is.
+
+With that understood, Eq.~\eqref{eq:rangechoice} is solved \emph{on paper} for
+each shape:
 
 \begin{align}
   \text{Pöschl-Teller:}&\quad \frac{v\mu^2}{\cosh^2(\mu R)} = \varepsilon
@@ -293,6 +360,25 @@ $|V(R)| = \texttt{V\_ZERO}$, and that equation is solved \emph{on paper}:
 \why{An earlier version searched for these radii numerically, sweeping a global
 40\,000-point grid. Solving on paper removed that grid, removed a helper
 function, and made the result exact instead of limited by the sweep resolution.}
+
+\subsection{The units of the coefficients}
+
+Since $[V_{\mathrm{code}}] = \mathrm{fm}^{-2}$ by Eq.~\eqref{eq:codeunits}, each
+term of the Lennard-Jones has to carry $\mathrm{fm}^{-2}$ on its own:
+\[
+  \left[\frac{C_{12}}{r^{12}}\right] = \mathrm{fm}^{-2}
+  \;\Longrightarrow\; [C_{12}] = \mathrm{fm}^{10},
+  \qquad
+  \left[\frac{C_6}{r^{6}}\right] = \mathrm{fm}^{-2}
+  \;\Longrightarrow\; [C_6] = \mathrm{fm}^{4}.
+\]
+The same two exponents reappear in Sec.~\ref{sec:scale} as the powers of $L$ in
+the scaling rule, and that is not a coincidence: a scaling law read off the
+units is the same statement twice.
+
+For the other three potentials the strength $v$ is dimensionless and the scale
+$\mu$ is an inverse length, $[\mu] = \mathrm{fm}^{-1}$, so $v\mu^2$ carries the
+$\mathrm{fm}^{-2}$ by itself.
 
 \subsection{A factor of two in Eq.~(121)}
 \label{sec:halffactor}
@@ -404,7 +490,17 @@ The consequence was measured, and it is a real error: the Lennard-Jones $r_0$
 
 \subsection{The calculation}
 
-With $r = e^x$ and $u = e^{x/2}w(x)$, using $\dfrac{d}{dr} = e^{-x}\dfrac{d}{dx}$:
+Strictly the argument of a logarithm has to be dimensionless, and $r$ is in fm.
+So the substitution is
+\begin{equation}
+  x = \ln\!\left(\frac{r}{r_*}\right), \qquad r_* = 1~\mathrm{fm},
+  \label{eq:logsub}
+\end{equation}
+and $r = r_*e^{x}$. Choosing $r_* = 1$~fm means every number below is unchanged
+--- which is why the distinction is easy to drop --- but the definition is only
+well posed with it written. Below we keep $r_* = 1$ implicit and write $r = e^x$.
+
+With that, and $u = e^{x/2}w(x)$, using $\dfrac{d}{dr} = e^{-x}\dfrac{d}{dx}$:
 \begin{align}
   u' &= e^{-x}\frac{d}{dx}\bigl(e^{x/2}w\bigr)
       = e^{-x/2}\Bigl(\tfrac12 w + w'\Bigr),\\[4pt]
@@ -510,6 +606,7 @@ magnitude}, with the same number of points.
 
 % ======================================================================
 \section{What the code measures: $a$ and $r_0$}
+\label{sec:r0meaning}
 
 \subsection{The scattering length}
 
@@ -553,9 +650,26 @@ the same scale.}
   \label{eq:r0}
 \end{equation}
 
-The integrand measures \emph{how far the true solution departs from the line},
-which is why it is a measure of the size of the potential. Outside the range
-$u = g_0$ and the integrand vanishes identically, so the integral does end at $R$.
+The integrand measures \emph{how far the true solution departs from the line}.
+Outside the range $u = g_0$ and it vanishes identically, so the integral does
+end at $R$.
+
+\why{It is tempting to read $r_0$ as ``the size of the potential''. For the
+square well the temptation is strong, because at every pole of $a$ we get
+$r_0/R = 1$ exactly --- and it is precisely because the analogy works so well
+there that it should not be generalised. In general $r_0$ is not a geometric
+radius:
+\begin{itemize}
+  \item it can be \textbf{negative};
+  \item it depends on the shape of the \emph{interior} wavefunction, not on
+        where the potential stops;
+  \item it can grow large near special structures, without the potential
+        growing at all;
+  \item it need not coincide with any radius one could draw on a plot of $V$.
+\end{itemize}
+What Eq.~\eqref{eq:r0} says is narrower and safer: $r_0$ measures the failure of
+the true solution to be the straight line, weighted over all $r$. That is a
+statement about the wavefunction, and only indirectly about the potential.}
 
 Two details in the code:
 
@@ -838,6 +952,7 @@ proves Table~1 is internally consistent --- and, incidentally, that the factor
 of 2 in Eq.~\eqref{eq:conversion} is right.}
 
 \subsection*{The three tunings that do not match, and why}
+\label{sec:flat}
 
 Nine of the twelve tunings land within $0.2\%$ of the published parameters.
 Three do not, and they do not fail for the same reason.
@@ -1069,19 +1184,59 @@ It is now in \texttt{test\_lab.py}.
 \subsection{Accuracy achieved}
 
 \begin{center}
-\begin{tabular}{lr}
+\begin{tabular}{lrl}
 \toprule
-check & error \\
+check & error & kind \\
 \midrule
-$a$ of the well against Eq.~(80) & $1.9\times10^{-10}$ \\
-$r_0$ of the well against Eq.~(92) & $5.6\times10^{-12}$ \\
-bound state against $k\cot(kR)=-\kappa$ & $3.4\times10^{-10}$ \\
-$r_0/R$ at the four poles & $1.0000000000$ \\
-solver against closed forms (16 points) & $8.4\times10^{-9}$ \\
-tuning hitting its target & $10^{-10}$ \\
+$a$ of the well against Eq.~(80) & $1.9\times10^{-10}$ & relative \\
+$r_0$ of the well against Eq.~(92) & $5.6\times10^{-12}$ & relative \\
+bound state against $k\cot(kR)=-\kappa$ & $3.4\times10^{-10}$ & relative \\
+$r_0/R$ at the four poles & $1.0000000000$ & exact value, not an error \\
+solver against closed forms (16 points) & $8.4\times10^{-9}$ & relative \\
+tuning, $a$ against target & $10^{-6}$ & relative \\
+tuning, $r_0$ against target & $10^{-6}$ & \textbf{absolute} \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\why{The last two rows used to be one row reading ``$10^{-10}$''. Splitting them
+is not pedantry: the code asserts \texttt{abs(r0 - target) < 1e-6}, an absolute
+tolerance in fm, and \texttt{abs(a/target - 1) < 1e-6}, a relative one. Those
+are different requirements, and at unitarity, where $a\to\infty$, only the
+absolute one is even meaningful. Stating ``the error is $10^{-6}$'' without
+saying which is an invitation to compare two numbers that are not comparable.
+
+\textbf{Convention for the rest of this document:} every error is relative
+unless it is marked absolute.}
+
+\subsection*{The dimensionless number worth reporting}
+
+Absolute and relative are the minimum. Better, where the physics offers one, is
+a ratio built from the problem itself. Here the natural one is $r_0/a$: it is
+dimensionless, it is invariant under the rescaling of Sec.~\ref{sec:scale}, and
+it measures how close a system sits to unitarity, where it vanishes.
+
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+system & $a$ & $r_0$ & $r_0/a$ & zero-range error \\
+\midrule
+unitarity & $\infty$ & $1.0$ & $0$ & --- \\
+$^4$He dimer & $90.4$ & $8.0$ & $0.089$ & $8.6\%$ \\
+neutron-neutron & $-18.5$ & $2.7$ & $-0.146$ & --- \\
+deuteron & $5.4112$ & $1.744$ & $0.322$ & $36.3\%$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\why{This single column explains a result that otherwise looks arbitrary. The
+zero-range formula misses the deuteron by $36\%$ and the helium dimer by only
+$8.6\%$ --- a factor of $4.2$. The ratio $r_0/a$ differs between them by a factor
+of $3.6$. Zero range is the approximation that throws $r_0$ away, so its error
+is governed by exactly this number, and the two factors agreeing to within
+$20\%$ is the expansion behaving as advertised. Note also that $r_0/a$ is
+negative for the neutron-neutron system, which is a sign that no dimensionless
+``size'' reading of $r_0$ survives: see Sec.~\ref{sec:r0meaning}.}
 
 % ======================================================================
 \section{What is missing}
@@ -1167,7 +1322,8 @@ def numerov(pot, E):
 \item Where to start: outside the core if there is one, otherwise near the
       origin, because $\ln 0$ does not exist. The skipped stretch enters
       analytically.
-\item The grid is uniform in $x = \ln r$ and ends \emph{exactly} at $\ln R$.
+\item The grid is uniform in $x = \ln(r/r_*)$, $r_*=1$~fm by
+      Eq.~\eqref{eq:logsub}, and ends \emph{exactly} at $\ln R$.
 \item The effective potential of Eq.~\eqref{eq:log}. The $r^2$ comes from
       $e^{2x}$; the $0.25$ is the $\tfrac14$ the substitution generated.
 \item Numerov's $f$. Note it is a \emph{vector}, computed once for the whole
@@ -1288,6 +1444,30 @@ Sec.~4.5 of~\cite{rbef}, which asks for a nodeless $u(r)$ when $a<0$ and one
 node when $a>0$.
 
 \subsection*{\texttt{PUBLISHED} --- Tables 3 and 4, against what the tuning returns}
+Throughout, $p_1$ is the \textbf{strength} parameter and $p_2$ the
+\textbf{scale} parameter, in that order --- which is the order the constructors
+take them in. Concretely:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+potential & $p_1$ (strength) & $p_2$ (scale) \\
+\midrule
+square well & $v$, dimensionless & $\mu$, $\mathrm{fm}^{-1}$ \\
+Pöschl-Teller & $v$, dimensionless & $\mu$, $\mathrm{fm}^{-1}$ \\
+Gaussian & $v$, dimensionless & $\mu$, $\mathrm{fm}^{-1}$ \\
+Lennard-Jones & $\boldsymbol{C_6}$, $\mathrm{fm}^{4}$ & $\boldsymbol{C_{12}}$, $\mathrm{fm}^{10}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\why{The Lennard-Jones row is worth pausing on: \texttt{LennardJones} takes
+$C_6$ \emph{first}, even though the potential is universally called ``12-6''.
+Reading the two the other way round is an easy mistake --- it was made while
+these notes were being written, and it put the two coefficients under each
+other's names in the flat-direction analysis of Sec.~\ref{sec:flat} until it was
+caught.}
+
 \begin{center}
 \footnotesize
 \begin{tabular}{llrrrrr}

@@ -3,9 +3,23 @@
 The notebook next to this file needs nothing else.
 
 UNITS
-    hbar = reduced mass = 1, lengths in fm, so the radial equation is
-        u'' = 2 (V - E) u
-    and physical energies come from  E_phys = 2 * (hbar^2 / 2 mu) * E_code.
+    Distances are in fm and are NOT rescaled. Energies and potentials are,
+    by m_r / hbar^2:
+
+        V_code = (m_r / hbar^2) V_phys,   E_code = (m_r / hbar^2) E_phys
+
+    so the radial equation becomes  u'' = 2 (V - E) u.
+
+    Note what this does and does not say. It is NOT "hbar = m_r = 1 and
+    everything is dimensionless": with r still in fm,
+
+        [V_code] = [E_code] = fm^-2.
+
+    That single line fixes the units of the Lennard-Jones coefficients,
+    [C6] = fm^4 and [C12] = fm^10, and with them the exponents in the scaling
+    rule under GUESS. Going back:
+
+        E_phys = 2 (hbar^2 / 2 m_r) E_code,   V_phys = 2 (hbar^2 / 2 m_r) V_code
 
 THE ONE IDEA
     The potential only acts up to a radius R. Past R we have V = 0, and there
@@ -80,7 +94,12 @@ class Well:
 
 
 class PoschlTeller:
-    """V = -v mu^2 / cosh^2(mu r).  Eq. (116) of [1].  Smooth and solvable."""
+    """V = -v mu^2 / cosh^2(mu r).  Eq. (116) of [1].  Smooth.
+
+    [1] gives a closed form for the scattering length. It does NOT give one for
+    r0 or for the zero-energy wavefunction except at unitarity, so this is not a
+    potential we can check the solver against the way we check the well.
+    """
     name = "Poschl-Teller"
 
     def __init__(self, v, mu):
@@ -149,7 +168,7 @@ POTENTIALS = {"well": Well, "mpt": PoschlTeller,
 # grid lets a single number work here. 8001 is not arbitrary: total error is
 # truncation (falls with more points) plus roundoff (grows with them), and this
 # sits at the minimum. The three purely attractive potentials are at machine
-# 1e-11, and are insensitive. The Lennard-Jones is the one that sets the value:
+# precision, 1e-11, and are insensitive. The Lennard-Jones sets the value:
 # past ~8000 points its r0 degrades again, by 3e-5 at 32001 and 3e-4 at 64001.
 POINTS = 8001
 
@@ -397,7 +416,7 @@ def r0_well(v, R=1.0):
 
 
 def E_zero_range(a, h2_2mu):
-    """E = -(hbar^2/2mu) / a^2. Throws away the size of the potential."""
+    """E = -(hbar^2/2mu) / a^2. Keeps a and nothing else: r0 is dropped."""
     return -h2_2mu / a ** 2
 
 
