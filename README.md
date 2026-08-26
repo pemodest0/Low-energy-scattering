@@ -7,7 +7,8 @@ the first stage of my MSc at the São Carlos Institute of Physics (IFSC-USP).
 `a` and the effective range `r0`. The same two-parameter description then holds
 for systems with nothing else in common: the deuteron, bound by the strong
 force at the MeV scale, and the helium-4 dimer, bound by van der Waals at the
-mK scale — nine orders of magnitude apart in energy.
+mK scale. Converted to the same units, that is **13 orders of magnitude in
+energy** and 6 in length.
 
 **What is measured here.** Both systems, from `(a, r0)` alone, with four
 unrelated potentials each. The binding energies come out within 1% of the

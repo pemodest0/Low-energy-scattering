@@ -148,7 +148,7 @@ POTENTIALS = {"well": Well, "mpt": PoschlTeller,
 # One grid size for all four potentials -- see numerov() for why a logarithmic
 # grid lets a single number work here. 8001 is not arbitrary: total error is
 # truncation (falls with more points) plus roundoff (grows with them), and this
-# sits at the minimum. The three smooth potentials are at machine precision,
+# sits at the minimum. The three purely attractive potentials are at machine
 # 1e-11, and are insensitive. The Lennard-Jones is the one that sets the value:
 # past ~8000 points its r0 degrades again, by 3e-5 at 32001 and 3e-4 at 64001.
 POINTS = 8001
@@ -268,8 +268,26 @@ def bound_energy(pot, guess):
 
         slope(R) + kappa * u(R) = 0
 
-    We add instead of writing slope/u + kappa because u(R) can be zero -- the
-    deuteron has a node -- and dividing would invent a pole.
+    WHY THE SUM AND NOT slope/u + kappa
+        Measured: with the ratio, brentq fails to bracket for three of the four
+        potentials -- it reports the same sign at both ends of the interval.
+        The sum brackets for all four.
+
+        An earlier version of this docstring said the reason was that u(R) can
+        pass through zero, "the deuteron has a node". That is wrong twice. The
+        deuteron's bound state is the ground state and is nodeless; what carries
+        a node is the zero-energy scattering solution of a potential that
+        supports a bound state, which is the function scattering() looks at, not
+        this one. And u(R) never comes near zero here: swept across the bracket,
+        its smallest value over the four potentials is 7e-3.
+
+    WHY THE DENOMINATOR
+        Normalisation, nothing else. It moves the root by 3e-16. What it fixes
+        is scale: the raw residual is about 1e-2 for the square well and 1e21
+        for the Lennard-Jones, whose u climbs out of the hard core before
+        reaching the edge. One absolute tolerance cannot serve both, so we
+        divide by the largest thing in play and every potential lands at order
+        one.
 
     `guess` is the finite-range formula, already within about 1%, so there is
     no search here: the physics gives us the bracket.

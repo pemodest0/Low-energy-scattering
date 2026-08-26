@@ -56,6 +56,25 @@ It also unblocked the helium Lennard-Jones, which had been silently dropped
 (Sec.~\ref{sec:helium-lj}). \\
 2026-08-26 & scale-invariance test added &
 the property that was wrong is directly testable; it now guards itself. \\
+2026-08-26 & 9 orders of magnitude $\to$ 13 &
+eV was being compared against K without converting. Review point, Sec.~1. \\
+2026-08-26 & matching equation now carries its denominator &
+the notes showed $u'(R)+\kappa u(R)$; the code divides by
+$\max(|u|,|u'|,1)$. Review point, Sec.~11. \\
+2026-08-26 & ``the deuteron has a node'' removed &
+the bound state is nodeless; the zero-energy solution is what carries a node.
+Review point, Sec.~11. \\
+2026-08-26 & spurious-node entry in the autopsy marked wrong &
+a zero product never satisfies $<0$, so that was never the cause. Review point,
+App.~A2. \\
+2026-08-26 & ``three smooth'' $\to$ ``three purely attractive'' &
+the square well is discontinuous. Review point, Sec.~4. \\
+2026-08-26 & Pöschl-Teller: closed form for $a$ only &
+$r_0$ and the zero-energy function are known only at unitarity. Review point,
+Sec.~4. \\
+2026-08-26 & figure caption $10^{10}\to10^{5}$ &
+$10^{10}$ is what the reference prescribes; the code uses $10^{5}$. Review
+point, Sec.~4. \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -90,10 +109,22 @@ deuteron & $5.4112$ fm & $1.7436$ fm & $-2.224$ MeV & nuclear \\
 \end{tabular}
 \end{center}
 
-Nine orders of magnitude apart in energy, five in length, and one is held
-together by the van der Waals force while the other is held together by the
-strong interaction. And yet the same two numbers, fed into the same two
-formulas, reproduce both binding energies.
+Both quantities must be converted to common units before they are compared,
+which is the whole point of the exercise. With $k_B = 8.617\times10^{-5}$
+eV/K, the deuteron sits at $2.224\times10^{6}$~eV and the helium dimer at
+$1.396\times10^{-7}$~eV: a ratio of $1.59\times10^{13}$, so \textbf{13 orders of
+magnitude in energy}. In length, $90.4$~\AA{} against $5.4112$~fm is
+$1.67\times10^{6}$, so \textbf{6 orders}. One is held together by van der Waals
+and the other by the strong interaction, and yet the same two numbers, fed into
+the same two formulas, reproduce both binding energies.
+
+The two figures are not independent. If $E \sim \hbar^2/(2m_r a^2)$, the energy
+ratio should be the length ratio squared times the reduced-mass ratio:
+$(1.67\times10^{6})^2 \times 3.97 = 1.11\times10^{13}$, against
+$1.59\times10^{13}$ measured. The factor of $1.44$ left over is what the
+effective range adds on top of the zero-range estimate. So the 13 orders in
+energy \emph{are} the 6 in length, squared, plus the masses --- which is the
+scaling law working, not a coincidence.
 
 \subsection*{Shape independence is the mechanism, not the definition}
 
@@ -225,7 +256,7 @@ hypothesis.
 \textbf{Potential} & \textbf{Form} & \textbf{What it stresses} \\
 \midrule
 Square well, Eq.~(70) & $-v\mu^2$ for $r<1/\mu$ & a \textbf{discontinuity} \\
-Pöschl-Teller, Eq.~(116) & $-v\mu^2/\cosh^2(\mu r)$ & \textbf{smooth and solvable} in closed form \\
+Pöschl-Teller, Eq.~(116) & $-v\mu^2/\cosh^2(\mu r)$ & \textbf{smooth}; closed form for $a$ only \\
 Gaussian, Eq.~(120) & $-v\mu^2 e^{-\mu^2r^2}$ & tail dying \textbf{faster than exponentially} \\
 Lennard-Jones, Eq.~(121) & $\tfrac12(C_{12}/r^{12} - C_6/r^6)$ & \textbf{hard core} plus van der Waals tail \\
 \bottomrule
@@ -235,8 +266,10 @@ Lennard-Jones, Eq.~(121) & $\tfrac12(C_{12}/r^{12} - C_6/r^6)$ & \textbf{hard co
 \begin{figure}[htbp]\centering
   \includegraphics[width=\textwidth]{figures/potentials.pdf}
   \caption{The four potentials, all tuned to unitarity ($|a|\to\infty$). The
-  Lennard-Jones needs logarithmic axes because its core reaches $10^{10}$ in
-  code units; the dotted line marks \texttt{r\_min}, where integration starts.}
+  Lennard-Jones needs logarithmic axes because of its hard core; the dotted line
+  marks \texttt{r\_min}, the radius where $V$ reaches \texttt{V\_CORE} $=10^{5}$
+  and integration starts. Reference~\cite{rbef} prescribes $10^{10}$ for that
+  cut; Sec.~\ref{sec:constants} shows why $10^{5}$ is already converged.}
 \end{figure}
 
 \subsection{The range $R$, in closed form}
@@ -592,13 +625,30 @@ potential.
 Beyond the edge, with $E<0$, the solution must be the decaying exponential. That
 gives the matching condition
 \begin{equation}
-  \boxed{\;g(E) \equiv u'(R) + \kappa\,u(R) = 0,\qquad \kappa = \sqrt{-2E}\;}
+  \boxed{\;g(E) \equiv
+    \frac{u'(R) + \kappa\,u(R)}{\max\bigl(|u(R)|,\,|u'(R)|,\,1\bigr)} = 0,
+    \qquad \kappa = \sqrt{-2E}\;}
 \end{equation}
 
-\why{We write the \emph{sum}, not $u'/u + \kappa$, because $u(R)$ can pass
-through zero --- the deuteron has a node --- and the division would invent a
-spurious pole for the root finder to chase. This cost hours: with the ratio, the
-helium dimer came out completely wrong.}
+\why{Two separate decisions are packed into that expression.
+
+\textbf{The sum, not the ratio $u'/u + \kappa$.} Measured: with the ratio,
+\texttt{brentq} fails to bracket for three of the four potentials --- it reports
+that the two ends of the interval carry the same sign. The sum brackets for all
+four. (An earlier version of these notes justified this by saying that $u(R)$
+passes through zero because ``the deuteron has a node''. That is wrong twice
+over. The deuteron's bound state is the ground state and has \emph{no} node ---
+what carries a node is the zero-energy scattering solution of a potential that
+supports a bound state, which is a different function. And $|u(R)|$ never comes
+near zero here: swept across the bracket, its smallest value over the four
+potentials is $7\times10^{-3}$.)
+
+\textbf{The denominator.} It is normalisation, and it does not move the root ---
+removing it changes the answer by $3\times10^{-16}$. What it fixes is scale.
+The raw residual $u'(R) + \kappa u(R)$ is of order $10^{-2}$ for the square well
+and $10^{21}$ for the Lennard-Jones, because $u$ at the edge spans that range
+after climbing out of the hard core. A single absolute tolerance cannot serve
+both. Dividing brings every potential to order unity.}
 
 \subsection*{Why there is no search}
 
@@ -674,6 +724,7 @@ point of Sec.~\ref{sec:universality}.}
 
 % ======================================================================
 \section{Every constant, one by one}
+\label{sec:constants}
 
 No number in the code is a guess. This table is the justification for each.
 
@@ -695,7 +746,7 @@ No number in the code is a guess. This table is the justification for each.
 \addlinespace
 \texttt{POINTS} & 8001 & grid size &
   Total error is truncation (falls with $n$) plus roundoff (grows with $n$);
-  8001 sits at the minimum. The three smooth potentials are at $10^{-11}$ and
+  8001 sits at the minimum. The three purely attractive potentials are at $10^{-11}$ and
   do not care. The Lennard-Jones sets the value: past $\sim$8000 its $r_0$
   \emph{degrades} again --- $3\times10^{-5}$ at 32001, $3\times10^{-4}$ at
   64001. \\
@@ -894,10 +945,18 @@ agrees with an independent method to seven digits.
 acted --- which, in a well, is inside, where $V\neq0$. \textbf{Fix:} match
 outside.
 
-\subsection*{4. The spurious node at the origin}
+\subsection*{4. The node count, and a diagnosis that was wrong}
 \textbf{Symptom:} every potential reported one extra bound state.
-\textbf{Cause:} $u_0 = 0$ by construction counted as a sign change.
-\textbf{Fix:} start the loop at \texttt{i = 1}.
+\textbf{Recorded cause:} $u_0 = 0$ counted as a sign change.
+\textbf{That diagnosis does not survive checking.} The test in the code is
+\texttt{u[i] * u[i+1] < 0.0}, and a product of zero is not less than zero, so
+$u_0=0$ could never have been counted. Running the loop from \texttt{i = 0} and
+from \texttt{i = 1} gives the \emph{same} count for all four potentials, and in
+three of them $u_0$ is not even zero. Starting at \texttt{i = 1} is harmless, but
+it cannot have been what fixed the symptom. What did is no longer recorded, and
+is not reconstructed here --- replacing one guess with another is how the wrong
+entry got written in the first place. Kept visible because a false entry in an
+autopsy is worse than a gap in one.
 
 \subsection*{5. The inner term that only applied to the Lennard-Jones}
 \textbf{Symptom:} residual error of $2.4\times10^{-6}$ in the well's $r_0$.
@@ -958,7 +1017,7 @@ Lennard-Jones     & $-2.203$ & $-0.92\%$ & --- & --- \\
 \end{tabular}
 \end{center}
 
-Two systems separated by nine orders of magnitude in energy, described by the
+Two systems separated by 13 orders of magnitude in energy, described by the
 same two numbers and the same two formulas. That is the universality of
 Sec.~\ref{sec:universality}, measured.
 
@@ -1159,7 +1218,9 @@ def scattering(pot):
 \item The integral of Eq.~\eqref{eq:r0}. The \texttt{* r} is the Jacobian
       $dr = r\,dx$.
 \item The stretch $[0, r_{\text{start}}]$, done on paper.
-\item The loop starts at 1: including $u_0=0$ would count a spurious node.
+\item The loop starts at 1. This is cosmetic, not a fix: the test is
+      \texttt{u[i]*u[i+1] < 0}, and a zero product never counts, so starting at
+      0 gives the same answer --- verified on all four potentials.
 \item The exterior node at $r=a$, which exists only if $a$ is finite and larger
       than $R$.
 \end{enumerate}
