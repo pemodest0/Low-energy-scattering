@@ -67,6 +67,29 @@ from scipy.optimize import brentq
 V_ZERO = 1e-12
 V_CORE = 1e5
 
+# How close to unitarity counts as unitarity, for the bound-state count only.
+#
+# The question "10 to which power is infinity?" has no answer while it is asked
+# about `a` itself, because `a` carries a length and the answer would then
+# depend on the system. Asked about a dimensionless ratio it does have one.
+# The ratio to use is r0/a: it is invariant under rescaling, and it vanishes at
+# unitarity by definition. R/a would not do -- R is a truncation we chose, not
+# physics, and for the Lennard-Jones at unitarity R/a = 1.5e-3, which is not
+# small at all.
+#
+# Measured separation, over the twelve published cases:
+#     |r0/a| at unitarity      2.2e-11 ... 2.1e-05
+#     |r0/a| where a node counts          3.14e-01
+# a gap of about 15000. The threshold below sits 47x above the first group and
+# 314x below the second.
+UNITARITY = 1e-3
+
+# Where integration starts when there is no hard core, as a fraction of R.
+# Below this radius u is proportional to r and the piece is added analytically
+# in scattering(), so the value is a truncation knob and belongs in the error
+# budget with V_ZERO and V_CORE rather than buried in numerov().
+R_START_FRACTION = 1e-6
+
 
 # =============================================================================
 #  The four potentials
@@ -204,7 +227,7 @@ def numerov(pot, E):
     """
     # Where to start: outside the hard core if there is one, otherwise close
     # enough to the origin that the piece we skip is analytic (see scattering).
-    r_start = pot.r_min if pot.r_min > 0.0 else pot.R * 1e-6
+    r_start = pot.r_min if pot.r_min > 0.0 else pot.R * R_START_FRACTION
 
     x = np.linspace(math.log(r_start), math.log(pot.R), POINTS)
     h = x[1] - x[0]
@@ -240,8 +263,16 @@ def scattering(pot):
 
     # Past the edge V = 0, so u is the straight line C (1 - r/a). Where that
     # line crosses zero is the scattering length -- exact, not a fit.
+    #
+    # The branch below is mathematically right and numerically unreachable: a
+    # float slope is never exactly 0.0. Swept across the well's resonance it
+    # goes 7.9e-3, 7.9e-4, 3.5e-7, -7.8e-4, -7.8e-3 -- small, then small and
+    # negative, never zero. So `a` is never inf in practice; it is large and
+    # it CHANGES SIGN through the resonance, which is the physical behaviour.
+    # Returning +inf here would be picking one side of that sign flip by fiat.
+    # Kept only so the function is total.
     if slope == 0.0:
-        a = math.inf        # exact unitarity: the line is flat, it never crosses
+        a = math.inf
     else:
         a = pot.R - u[-1] / slope
 
@@ -268,9 +299,12 @@ def scattering(pot):
     for i in range(1, POINTS - 1):
         if u[i] * u[i + 1] < 0.0:
             nodes = nodes + 1
-    if pot.R < a < 1e4:
-        # The line crosses zero at r = a, outside the potential. When a is
-        # effectively infinite that zero sits at infinity and does not count.
+    if pot.R < a and abs(r0 / a) > UNITARITY:
+        # The line crosses zero at r = a, outside the potential. That zero is a
+        # node when a is finite, and marches off to infinity as we approach
+        # unitarity, where by convention the new state does not count yet.
+        # "Approach unitarity" has to be a dimensionless statement -- see
+        # UNITARITY above for why r0/a and not a itself.
         nodes = nodes + 1
 
     return a, r0, nodes

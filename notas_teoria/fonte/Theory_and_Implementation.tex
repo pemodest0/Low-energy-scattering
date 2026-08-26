@@ -72,6 +72,16 @@ the square well is discontinuous. Review point, Sec.~4. \\
 2026-08-26 & Pöschl-Teller: closed form for $a$ only &
 $r_0$ and the zero-energy function are known only at unitarity. Review point,
 Sec.~4. \\
+2026-08-26 & unitarity given a dimensionless threshold &
+\texttt{R < a < 1e4} replaced by $|r_0/a| >$ \texttt{UNITARITY} $=10^{-3}$. The
+old bound hid a length. Works over three decades. Review point, Sec.~9. \\
+2026-08-26 & error budget added, Sec.~\ref{sec:budget} &
+all six knobs from the review swept: \texttt{POINTS}, \texttt{V\_ZERO},
+\texttt{V\_CORE}, \texttt{R\_START\_FRACTION}, the edge stencil, \texttt{brentq}.
+Review point, Sec.~18. \\
+2026-08-26 & \texttt{R\_START\_FRACTION} lifted to module level &
+it was inline in \texttt{numerov}; a knob that cannot be turned cannot be
+audited. \\
 2026-08-26 & units written as definitions &
 $V_{\mathrm{code}}=(m_r/\hbar^2)V_{\mathrm{phys}}$ and the same for $E$, plus
 $[V]=[E]=\mathrm{fm}^{-2}$ and the conversion for $V$. Five review points
@@ -619,8 +629,8 @@ at $r=a$, and knowing $u(R)$ and $u'(R)$ fixes the line:
 \why{This is an \emph{exact reading}, not a fit. No least squares, no
 extrapolation. The only source of error is the integration out to $R$.}
 
-The code handles $u'(R)=0$ separately: the line is horizontal, never crosses
-zero, and $a = \infty$. That is exact unitarity, not a failure.
+The code carries a branch for $u'(R)=0$: the line is horizontal, never crosses
+zero, and $a = \infty$.
 
 \begin{lstlisting}
     if slope == 0.0:
@@ -628,6 +638,67 @@ zero, and $a = \infty$. That is exact unitarity, not a failure.
     else:
         a = pot.R - u[-1] / slope
 \end{lstlisting}
+
+\why{That branch is mathematically correct and \textbf{numerically
+unreachable}. A floating-point slope is never exactly zero. Swept across the
+square well's resonance, it measures
+
+\begin{center}
+\begin{tabular}{rrr}
+\toprule
+$v$ & $a$ & $u'(R)$ \\
+\midrule
+$1.2214$ & $-80.3$ & $7.9\times10^{-3}$ \\
+$1.2325$ & $-809$ & $7.9\times10^{-4}$ \\
+$1.2337$ & $-1.82\times10^{6}$ & $3.5\times10^{-7}$ \\
+$1.2349$ & $+812$ & $-7.8\times10^{-4}$ \\
+$1.2460$ & $+81.9$ & $-7.8\times10^{-3}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Small, then small and negative --- never zero. Two things follow. First,
+$a=\infty$ never actually occurs, so unitarity has to be recognised by a
+threshold rather than by an equality. Second, and this is the part the branch
+hides: $a$ \textbf{changes sign} through the resonance. Returning $+\infty$
+would be choosing one side of that flip by fiat. The branch is kept only so the
+function is total.}
+
+\subsection*{What ``infinite'' means, numerically}
+\label{sec:unitaritythreshold}
+
+The question is not rhetorical: at what value do we call $a$ infinite? Asked
+about $a$ itself the question has no answer, because $a$ carries a length and
+the answer would then depend on the system. Asked about a dimensionless ratio
+it does. The right ratio is $r_0/a$: it is invariant under the rescaling of
+Sec.~\ref{sec:scale}, and it vanishes at unitarity by construction. It is also
+the quantity Sec.~\ref{sec:errors} argues should be reported anyway.
+
+$R/a$ will not serve. $R$ is a truncation we chose, not physics --- and for the
+Lennard-Jones at unitarity $R/a = 1.5\times10^{-3}$, which is not small.
+
+Measured over the twelve published cases:
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+ & $|r_0/a|$ \\
+\midrule
+at unitarity & $2.2\times10^{-11}$ to $2.1\times10^{-5}$ \\
+where an exterior node must count & $3.14\times10^{-1}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+a gap of about $1.5\times10^{4}$, so
+\begin{equation}
+  \texttt{UNITARITY} = 10^{-3}
+\end{equation}
+sits $47\times$ above one group and $314\times$ below the other. Every one of
+the twelve cases gets the Table 2 count for any threshold from $10^{-2}$ to
+$10^{-4}$; it fails at $10^{-5}$, where the Lennard-Jones at unitarity stops
+being recognised. Three decades of margin, tested in
+\texttt{test\_the\_unitarity\_threshold\_is\_not\_fragile}. A threshold that
+worked at only one value would be a fit, not a criterion.
 
 \subsection{The normalisation, and why it is needed}
 
@@ -713,7 +784,13 @@ nodeless $u(r)$ for $a<0$ and one node for $a>0$.
 There is a subtlety. Beyond the edge the solution is the line $g_0 = 1 - r/a$,
 which crosses zero at $r = a$. If $a > R$ that zero is physical and counts. If
 $a$ is effectively infinite, the zero sits at infinity and does not --- hence
-the test \texttt{R < a < 1e4}.
+the test
+\begin{lstlisting}
+    if pot.R < a and abs(r0 / a) > UNITARITY:
+\end{lstlisting}
+with \texttt{UNITARITY} fixed in Sec.~\ref{sec:unitaritythreshold}. An earlier
+version read \texttt{R < a < 1e4}, a bound with a length hidden in it and no
+argument behind the number.
 
 \begin{lstlisting}
     nodes = 0
@@ -1003,6 +1080,7 @@ from any insensitivity of the potential.
 
 % ======================================================================
 \section{The checks}
+\label{sec:checks}
 
 \texttt{test\_lab.py} runs eight checks, and every one compares against
 something the code did \textbf{not} compute:
@@ -1210,6 +1288,7 @@ saying which is an invitation to compare two numbers that are not comparable.
 unless it is marked absolute.}
 
 \subsection*{The dimensionless number worth reporting}
+\label{sec:errors}
 
 Absolute and relative are the minimum. Better, where the physics offers one, is
 a ratio built from the problem itself. Here the natural one is $r_0/a$: it is
@@ -1239,6 +1318,182 @@ negative for the neutron-neutron system, which is a sign that no dimensionless
 ``size'' reading of $r_0$ survives: see Sec.~\ref{sec:r0meaning}.}
 
 % ======================================================================
+\section{The error budget}
+\label{sec:budget}
+
+Every number in this document rests on six choices that are ours, not the
+physics'. This section varies each one and reports what $r_0$ does. All entries
+are \textbf{relative} errors against the value at the setting actually used, and
+the deuteron parameters of Table 3 are the test case throughout.
+
+\subsection*{\texttt{POINTS} --- discretisation and round-off}
+
+\begin{center}\small
+\begin{tabular}{rrrrr}
+\toprule
+\texttt{POINTS} & well & Pöschl-Teller & Gaussian & Lennard-Jones \\
+\midrule
+$2001$ & $2.1\times10^{-9}$ & $1.6\times10^{-10}$ & $8.3\times10^{-11}$ & $2.6\times10^{-7}$ \\
+$4001$ & $1.3\times10^{-10}$ & $2.0\times10^{-12}$ & $3.9\times10^{-12}$ & $3.7\times10^{-7}$ \\
+$\mathbf{8001}$ & --- & --- & --- & --- \\
+$16001$ & $8.2\times10^{-12}$ & $5.0\times10^{-11}$ & $1.9\times10^{-11}$ & $1.9\times10^{-6}$ \\
+$32001$ & $1.4\times10^{-11}$ & $2.7\times10^{-10}$ & $1.3\times10^{-10}$ & $\mathbf{3.4\times10^{-5}}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\why{This is the one knob where more is not better, and the table shows why.
+The three purely attractive potentials are flat from 4001 upward --- they sit at
+machine precision and stop caring. The Lennard-Jones does not: its error falls
+to 8001 and then \emph{climbs} by two orders of magnitude out to 32001. That is
+round-off overtaking truncation, and it is the reason 8001 is written down
+rather than ``as many as we can afford''. The review asked for values beyond
+4001 and 8001; the answer is that they are worse.}
+
+\subsection*{\texttt{V\_ZERO} --- truncating the tail}
+
+\begin{center}\small
+\begin{tabular}{rrrrr}
+\toprule
+\texttt{V\_ZERO} & well & Pöschl-Teller & Gaussian & Lennard-Jones \\
+\midrule
+$10^{-9}$ & $0$ & $1.4\times10^{-8}$ & $1.6\times10^{-9}$ & $\mathbf{1.1\times10^{-3}}$ \\
+$10^{-10}$ & $0$ & $1.5\times10^{-9}$ & $2.1\times10^{-10}$ & $6.4\times10^{-4}$ \\
+$\mathbf{10^{-12}}$ & --- & --- & --- & --- \\
+$10^{-14}$ & $0$ & $3.2\times10^{-10}$ & $4.7\times10^{-11}$ & $3.6\times10^{-4}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\why{The well is exactly zero in every row, which is the point made under
+Eq.~\eqref{eq:rangechoice}: it is the only potential with a real range, so
+truncation cannot touch it. Everything else pays, and the Lennard-Jones pays
+$10^{3}$ to $10^{6}$ times more than the others, because a $1/r^6$ tail is still
+there when a Gaussian has long since vanished. Note that $10^{-14}$ is also
+worse than $10^{-12}$: pushing the cut further out lengthens the grid and buys
+round-off.}
+
+\subsection*{\texttt{V\_CORE} --- a wall instead of the core}
+
+\begin{center}\small
+\begin{tabular}{rrrrr}
+\toprule
+\texttt{V\_CORE} & well & Pöschl-Teller & Gaussian & Lennard-Jones \\
+\midrule
+$10^{3}$ & $0$ & $0$ & $0$ & $\mathbf{2.4\times10^{-3}}$ \\
+$10^{4}$ & $0$ & $0$ & $0$ & $2.9\times10^{-7}$ \\
+$\mathbf{10^{5}}$ & --- & --- & --- & --- \\
+$10^{6}$ & $0$ & $0$ & $0$ & $6.7\times10^{-7}$ \\
+$10^{7}$ & $0$ & $0$ & $0$ & $3.2\times10^{-7}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\why{Only the Lennard-Jones has a core, so only it responds --- the zeros in the
+other three columns are exact, not rounded. From $10^{4}$ upward the answer is
+converged to $10^{-6}$, and $10^{3}$ is visibly wrong. This is the measurement
+behind using $10^{5}$ where~\cite{rbef} prescribes $10^{10}$: the extra five
+decades buy nothing and cost stiffness.}
+
+\subsection*{\texttt{R\_START\_FRACTION} --- skipping the origin}
+
+\begin{center}\small
+\begin{tabular}{rrrrr}
+\toprule
+fraction of $R$ & well & Pöschl-Teller & Gaussian & Lennard-Jones \\
+\midrule
+$10^{-3}$ & $2.9\times10^{-9}$ & $\mathbf{6.8\times10^{-6}}$ & $4.5\times10^{-7}$ & $0$ \\
+$10^{-4}$ & $1.8\times10^{-12}$ & $6.7\times10^{-9}$ & $4.5\times10^{-10}$ & $0$ \\
+$\mathbf{10^{-6}}$ & --- & --- & --- & --- \\
+$10^{-8}$ & $8.5\times10^{-12}$ & $1.5\times10^{-11}$ & $9.6\times10^{-12}$ & $0$ \\
+$10^{-10}$ & $5.7\times10^{-11}$ & $1.1\times10^{-11}$ & $4.4\times10^{-12}$ & $0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\why{The Lennard-Jones column is exactly zero everywhere because it never uses
+this knob: it has a hard core, so its start comes from \texttt{V\_CORE}. For the
+other three the piece below $r_{\text{start}}$ is added analytically, which is
+why even $10^{-3}$ costs only $10^{-6}$. Converged by $10^{-4}$; the value used
+has four decades of margin.
+
+This constant used to be written inline inside \texttt{numerov}. It was lifted
+out to module level while assembling this table --- a knob that cannot be turned
+cannot be audited.}
+
+\subsection*{The edge derivative --- $h^4$ against $h^2$}
+
+Replacing the five-point one-sided stencil by the three-point one, and reading
+the change in $a$:
+
+\begin{center}\small
+\begin{tabular}{lr}
+\toprule
+potential & change in $a$ \\
+\midrule
+square well & $3.7\times10^{-6}$ \\
+Pöschl-Teller & $3.5\times10^{-7}$ \\
+Gaussian & $9.2\times10^{-8}$ \\
+Lennard-Jones & $5.0\times10^{-7}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\why{The square well is hit ten times harder than the others, and that is not
+an accident: it is the one with a discontinuity at the edge, so the stencil is
+sampling a function whose derivative jumps. Dropping to $O(h^2)$ would put the
+matching error at $10^{-6}$, four orders above the $1.9\times10^{-10}$ that
+Sec.~\ref{sec:checks} reports against Eq.~(80). The whole accuracy of this
+laboratory rests on those two extra stencil points.}
+
+\subsection*{\texttt{brentq} --- locating the root}
+
+Deuteron binding energy, square well, as the tolerance is loosened:
+
+\begin{center}\small
+\begin{tabular}{lrr}
+\toprule
+\texttt{xtol} & $E$ & change \\
+\midrule
+$10^{-6}$ & $-0.02628469$ & $4.0\times10^{-6}$ \\
+$10^{-9}$ & $-0.02628459$ & $2.3\times10^{-10}$ \\
+$10^{-12}$ & $-0.026284587$ & $3.7\times10^{-12}$ \\
+$\mathbf{10^{-15}}$ & $-0.026284587$ & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\why{Cheap: the root finder is not where the error lives. Even $10^{-9}$ would
+leave the answer good to $10^{-10}$, which is below every other term in this
+budget. \texttt{xtol} is set to $10^{-15}$ because there is no reason not to.}
+
+\subsection*{What the budget says}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+source & dominant for & size at the settings used \\
+\midrule
+\texttt{V\_ZERO} & Lennard-Jones & $\lesssim10^{-4}$ if loosened \\
+\texttt{POINTS} & Lennard-Jones & $10^{-5}$ if pushed to 32001 \\
+edge derivative & square well & $10^{-6}$ if dropped to $h^2$ \\
+\texttt{V\_CORE} & Lennard-Jones & $10^{-7}$ \\
+\texttt{R\_START\_FRACTION} & Pöschl-Teller & $10^{-11}$ \\
+\texttt{brentq} & --- & $10^{-12}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Three things are worth taking away. The Lennard-Jones dominates four of the six
+rows, because a hard core and a power-law tail stress every truncation at once.
+The square well is immune to the truncation knobs and uniquely sensitive to the
+edge derivative, for the same reason in both cases: it is the only potential
+with a genuine boundary. And no single knob is close to limiting the others ---
+which is what one wants from a budget, and is why the review's judgement that a
+full study ``is not the case here'' is fair. What is written above is the map,
+not the survey.
+
 \section{What is missing}
 
 \textbf{No error bars.} No number here carries an estimated discretisation

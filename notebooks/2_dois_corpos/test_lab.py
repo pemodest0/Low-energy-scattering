@@ -96,6 +96,33 @@ def test_inferred_constants_match_the_literature():
     assert abs(lab.SYSTEMS["he4_dimer"]["h2_2mu"] - 12.12) < 0.05
 
 
+def test_the_unitarity_threshold_is_not_fragile():
+    """UNITARITY decides when a is 'infinite' for the bound-state count.
+
+    Any threshold is a convention, so the thing to check is not the value but
+    the width of the window that works. Measured: every one of the twelve
+    published cases gets the node count of Table 2 for UNITARITY anywhere from
+    1e-2 to 1e-4. It breaks at 1e-5, where the Lennard-Jones at unitarity
+    (|r0/a| = 2.1e-5) stops being recognised as unitarity and its exterior zero
+    gets counted.
+
+    Three decades of margin, with the chosen value in the middle. A threshold
+    that only worked at one value would be a fit, not a criterion.
+    """
+    original = lab.UNITARITY
+    try:
+        for threshold in (1e-2, 1e-3, 1e-4):
+            lab.UNITARITY = threshold
+            for case in lab.TARGETS:
+                for name in lab.POTENTIALS:
+                    pub = lab.PUBLISHED[(case, name)]
+                    pot = lab.POTENTIALS[name](pub["p1"], pub["p2"])
+                    a, r0, nodes = lab.scattering(pot)
+                    assert nodes == lab.TARGETS[case]["nodes"], (threshold, case, name)
+    finally:
+        lab.UNITARITY = original
+
+
 def test_scale_invariance():
     """Rescaling every length by L must take (a, r0) to (L a, L r0).
 
