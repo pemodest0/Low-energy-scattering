@@ -810,10 +810,13 @@ argument behind the number.
 node count --- and then they are \emph{not} the same physical state. Every
 tuning ends by checking it.}
 
-\textbf{A bug that lived here:} the loop starts at \texttt{i = 1}, not
-\texttt{i = 0}. Since $u_0 = 0$ by construction, including the first point
-counted a spurious sign change and inflated the count by one for \emph{every}
-potential.
+\textbf{A claim that used to live here, and is wrong:} that the loop starts at
+\texttt{i = 1} because $u_0 = 0$ would otherwise count as a sign change. The
+test is \texttt{u[i]*u[i+1] < 0.0}, and a product of zero is not less than zero,
+so it never could. Running from \texttt{i = 0} and from \texttt{i = 1} gives the
+same count on all four potentials, and in three of them $u_0$ is not zero
+anyway. See the autopsy, Sec.~\ref{sec:autopsy}, for what is and is not known
+about the original symptom.
 
 % ======================================================================
 \section{The bound state}
@@ -1117,6 +1120,7 @@ happens deep in the roundoff regime?''.
 
 % ======================================================================
 \section{Autopsy: the errors made}
+\label{sec:autopsy}
 \label{sec:autopsy}
 
 This section exists because the cause of an error is usually worth more than the
