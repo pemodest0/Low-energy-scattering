@@ -51,6 +51,9 @@ SOURCES
     [3] Cencek, W. et al. J. Chem. Phys. 136, 224303 (2012)
         doi:10.1063/1.4712218
         Helium-4 dimer a, r0 and binding energy. Ref. [22] of [1].
+    [4] Aziz, R. A.; McCourt, F. R. W.; Wong, C. C. K. Molec. Phys. 61, 1487 (1987)
+        The HFD-B(HE) helium-helium potential. Parameters as tabulated in
+        Boronat & Casulleras, arXiv:cond-mat/9309015, Appendix A.
 """
 import math
 import numpy as np
@@ -182,7 +185,65 @@ class LennardJones:
         return 0.5 * (self.C12 / r ** 12 - self.C6 / r ** 6)
 
 
+class AzizHFDB:
+    """The real helium-helium potential. HFD-B(HE), Ref. [4].
+
+    THIS ONE HAS NO FREE PARAMETERS. The four potentials above are shapes we
+    tune until they sit at a chosen (a, r0). This one is fixed by spectroscopy
+    and ab initio theory, so feeding it in and reading (a, r0) out is a
+    prediction, not a fit -- the only falsifiable test in this file.
+
+        V(r) = eps [ A exp(-alpha x + beta x^2) - F(x) (C6/x^6 + C8/x^8 + C10/x^10) ]
+        F(x) = exp(-(D/x - 1)^2) for x < D, else 1,      x = r / rm
+
+    UNITS ARE THE POINT HERE
+        The published parameters are in kelvin and angstrom, not in code units.
+        By the definitions at the top of this file,
+
+            V_code = V_phys / (2 * h2_2mu),   h2_2mu = 12.09 K.A^2 for He2
+
+        so lengths come out in angstrom and V_code in A^-2. This is the first
+        place in the laboratory where the unit convention has to be used rather
+        than assumed, and it is a check on it: the potential must reproduce its
+        own tabulated minimum, V(rm) = -eps, which it does to every digit.
+
+    THE CORE IS SOFT, AND THAT CHANGES THE START
+        The Lennard-Jones diverges as 1/r^12, so the code steps around it by
+        starting at r_min where V = V_CORE. Aziz does not diverge: as r -> 0 the
+        exponential saturates and F(x) kills the dispersion terms, so V climbs
+        to a CEILING of eps*A/(2 h2_2mu) = 8.35e4 in code units -- below V_CORE.
+        There is no radius where V = V_CORE, so r_min = 0 and the regular-origin
+        start applies, the same one the well and the Gaussian use. Trying to
+        solve V = V_CORE here raises "f(a) and f(b) must have different signs",
+        which is the bracket telling the truth.
+
+    R IS NOT CLOSED FORM
+        Unlike the other four, |V(R)| = V_ZERO cannot be solved on paper here,
+        so R comes from brentq. Honest cost of using a real potential.
+    """
+    name = "Aziz HFD-B"
+
+    EPS, RM, D = 10.948, 2.963, 1.4826
+    A, ALPHA, BETA = 1.8443101e5, 10.43329537, -2.27965105
+    C6, C8, C10 = 1.36745214, 0.42123807, 0.17473318
+
+    def __init__(self, h2_2mu):
+        self.h2_2mu = h2_2mu
+        self.r_min = 0.0                    # soft core: see the docstring
+        # the tail: |V| = V_ZERO, bracketed beyond the minimum
+        self.R = brentq(lambda r: abs(self.V(r)) - V_ZERO, self.RM, 1e4, xtol=1e-12)
+
+    def V(self, r):
+        x = np.asarray(r, dtype=float) / self.RM
+        F = np.where(x < self.D, np.exp(-(self.D / x - 1.0) ** 2), 1.0)
+        disp = self.C6 / x ** 6 + self.C8 / x ** 8 + self.C10 / x ** 10
+        V_phys = self.EPS * (self.A * np.exp(-self.ALPHA * x + self.BETA * x * x) - F * disp)
+        return V_phys / (2.0 * self.h2_2mu)
+
+
 # The strength parameter always comes first, the scale parameter second.
+# AzizHFDB is deliberately NOT in here: it takes no (strength, scale) pair, so
+# it cannot be tuned, and tune() must never be handed it.
 POTENTIALS = {"well": Well, "mpt": PoschlTeller,
               "gauss": Gaussian, "lj": LennardJones}
 

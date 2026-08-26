@@ -96,6 +96,33 @@ def test_inferred_constants_match_the_literature():
     assert abs(lab.SYSTEMS["he4_dimer"]["h2_2mu"] - 12.12) < 0.05
 
 
+def test_aziz_reproduces_its_own_minimum():
+    """The Aziz parameters must put the minimum where the paper says.
+
+    V(rm) = -eps is a property of the published parameter set, so this checks
+    the transcription without needing any external result: if a digit of
+    EPS, RM, D, A, ALPHA, BETA or the C's were wrong, the minimum would move.
+
+    It also exercises the unit conversion. The parameters are in K and A while
+    the solver works in code units, so V(rm) has to be multiplied back by
+    2 * h2_2mu to be compared with -eps. That round trip is the units section
+    of the notes, used rather than assumed.
+    """
+    h2 = lab.SYSTEMS["he4_dimer"]["h2_2mu"]
+    pot = lab.AzizHFDB(h2)
+
+    depth = float(pot.V(pot.RM)) * 2.0 * h2
+    assert abs(depth + pot.EPS) < 1e-5, depth
+
+    grid = [2.0 + 0.0001 * k for k in range(20001)]
+    values = [float(pot.V(r)) for r in grid]
+    r_at_min = grid[values.index(min(values))]
+    assert abs(r_at_min - pot.RM) < 1e-3, r_at_min
+
+    assert pot.r_min == 0.0            # soft core, no hard wall
+    assert pot.R > 100.0               # the 1/r^6 tail reaches a long way
+
+
 def test_the_unitarity_threshold_is_not_fragile():
     """UNITARITY decides when a is 'infinite' for the bound-state count.
 

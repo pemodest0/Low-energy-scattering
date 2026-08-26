@@ -72,6 +72,11 @@ the square well is discontinuous. Review point, Sec.~4. \\
 2026-08-26 & Pöschl-Teller: closed form for $a$ only &
 $r_0$ and the zero-energy function are known only at unitarity. Review point,
 Sec.~4. \\
+2026-08-26 & Aziz HFD-B implemented, Sec.~\ref{sec:aziz} &
+first potential with no free parameters, so its $(a,r_0)$ is a prediction.
+Forced the unit conversion to be used and exposed that its core is soft.
+\textbf{Open:} no published HFD-B value found to check against. Review
+point, Sec.~18. \\
 2026-08-26 & unitarity given a dimensionless threshold &
 \texttt{R < a < 1e4} replaced by $|r_0/a| >$ \texttt{UNITARITY} $=10^{-3}$. The
 old bound hid a length. Works over three decades. Review point, Sec.~9. \\
@@ -1494,14 +1499,85 @@ which is what one wants from a budget, and is why the review's judgement that a
 full study ``is not the case here'' is fair. What is written above is the map,
 not the survey.
 
+\section{A potential with no free parameters}
+\label{sec:aziz}
+
+Everything so far has been a shape with two knobs, turned until it sat at a
+chosen $(a, r_0)$. The Aziz HFD-B potential~\cite{aziz} is not that. Its
+parameters are fixed by spectroscopy and \emph{ab initio} theory, so feeding it
+in and reading $(a, r_0)$ out is a \textbf{prediction}. It is the only
+falsifiable object in this document.
+
+\[
+  V(r) = \varepsilon\left[A e^{-\alpha x + \beta x^2}
+  - F(x)\left(\frac{C_6}{x^6}+\frac{C_8}{x^8}+\frac{C_{10}}{x^{10}}\right)\right],
+  \qquad x = \frac{r}{r_m},
+\]
+with $F(x) = e^{-(D/x-1)^2}$ for $x<D$ and $1$ otherwise.
+
+\subsection*{Two things it forced}
+
+\textbf{The units had to be used, not assumed.} The parameters are published in
+kelvin and \aa ngstr\"om. Getting them into the solver means
+$V_{\mathrm{code}} = V_{\mathrm{phys}}/(2\,\hbar^2/2m_r)$ from
+Eq.~\eqref{eq:vconversion}, with $\hbar^2/2m_r = 12.09$~K$\cdot$\AA$^2$; lengths
+then come out in \aa ngstr\"om and $V_{\mathrm{code}}$ in \AA$^{-2}$. This is
+the first place where the convention of Sec.~2 does work rather than sit there,
+and it checks out: the potential reproduces its own tabulated minimum,
+$V(r_m) = -\varepsilon = -10.948$~K, to six digits.
+
+\textbf{The core is soft.} The Lennard-Jones diverges as $r^{-12}$, so the code
+starts outside it at $V = \texttt{V\_CORE}$. Aziz does not diverge. As
+$r\to0$ the exponential saturates and $F(x)$ switches the dispersion terms off,
+leaving a ceiling
+\[
+  V_{\max} = \frac{\varepsilon A}{2\,\hbar^2/2m_r} = 8.35\times10^{4},
+\]
+which is \emph{below} \texttt{V\_CORE} $=10^5$. There is no radius where
+$V = \texttt{V\_CORE}$, so $r_{\min}=0$ and the regular-origin start applies.
+Asking for the hard-core radius raises ``\texttt{f(a) and f(b) must have
+different signs}'' --- the bracket reporting, correctly, that the thing being
+looked for does not exist.
+
+\subsection*{What it predicts}
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+ & Aziz HFD-B (1987) & Table 1 of~\cite{rbef} \\
+\midrule
+$a$ & $82.98$~\AA & $90.4$~\AA \\
+$r_0$ & $7.25$~\AA & $8.0$~\AA \\
+$E$ & $-1.93$~mK & $-1.62$~mK \\
+nodes & 1 & 1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{These two columns are not the same potential, and the difference should
+not be read as an error.} The numbers in Table 1 of~\cite{rbef} come from
+Cencek \emph{et al.}~\cite{cencek}, a 2012 \emph{ab initio} surface. HFD-B is a
+1987 fit. A disagreement of $8\%$ in $a$ between them is a statement about the
+two potentials, not about this solver.
+
+\textbf{What could not be verified.} A published HFD-B value for $a$ and $r_0$
+was not located, so the numbers above stand unchecked against their own source.
+The one external number found for comparison is the TTY potential, at
+$a = 100.01$~\AA{} and $r_0 = 7.329$~\AA; our $r_0 = 7.25$~\AA{} sits beside it,
+which is reassuring about the scale but is not a check. \emph{This is an open
+item, not a result.} The test in \texttt{test\_lab.py} verifies only what can
+be verified without an external table: that the parameters put the minimum at
+$r_m$ with depth $\varepsilon$, which catches a mistyped digit but would not
+catch a wrong functional form.
+
 \section{What is missing}
 
 \textbf{No error bars.} No number here carries an estimated discretisation
 uncertainty.
 
-\textbf{No Aziz HFD-B potential.} Reference~\cite{rbef} also benchmarks against
-the realistic \emph{ab initio} He--He potential. This work uses four model
-potentials only.
+\textbf{The Aziz HFD-B potential is now implemented} --- see
+Sec.~\ref{sec:aziz}. What is still missing there is a published HFD-B result to
+check against; see that section for what could and could not be verified.
 
 \textbf{No variable phase method.} An independent second route to $a$, which
 would give a cross-check on the least reliable number here.
@@ -1515,6 +1591,12 @@ $r_0$, reliable only to $\sim10^{-6}$ and limited by roundoff.
 
 % ======================================================================
 \begin{thebibliography}{9}
+\bibitem{aziz}
+  R.~A.~Aziz, F.~R.~W.~McCourt and C.~C.~K.~Wong,
+  \emph{A new determination of the ground state interatomic potential for He$_2$},
+  Molec.\ Phys.\ \textbf{61}, 1487 (1987). Parameters as tabulated in
+  J.~Boronat and J.~Casulleras, arXiv:cond-mat/9309015, Appendix A.
+
 \bibitem{rbef}
   M.~Macêdo-Lima and L.~Madeira,
   \emph{Scattering length and effective range of microscopic two-body potentials},
