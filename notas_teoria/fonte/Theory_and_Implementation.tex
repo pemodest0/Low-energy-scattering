@@ -45,8 +45,8 @@ Sec.~\ref{sec:autopsy}, because they are the most instructive part.
 \section*{Revision history}
 
 \begin{center}
-\small
-\begin{tabular}{llp{9.2cm}}
+\footnotesize
+\begin{tabular}{@{}l@{\hspace{6pt}}l@{\hspace{6pt}}p{7.0cm}@{}}
 \toprule
 date & what & why \\
 \midrule
@@ -58,44 +58,44 @@ It also unblocked the helium Lennard-Jones, which had been silently dropped
 the property that was wrong is directly testable; it now guards itself. \\
 2026-08-26 & 9 orders of magnitude $\to$ 13 &
 eV was being compared against K without converting. Review point, Sec.~1. \\
-2026-08-26 & matching equation now carries its denominator &
+2026-08-26 & matching equation, denominator &
 the notes showed $u'(R)+\kappa u(R)$; the code divides by
 $\max(|u|,|u'|,1)$. Review point, Sec.~11. \\
 2026-08-26 & ``the deuteron has a node'' removed &
 the bound state is nodeless; the zero-energy solution is what carries a node.
 Review point, Sec.~11. \\
-2026-08-26 & spurious-node entry in the autopsy marked wrong &
+2026-08-26 & spurious-node entry marked wrong &
 a zero product never satisfies $<0$, so that was never the cause. Review point,
 App.~A2. \\
-2026-08-26 & ``three smooth'' $\to$ ``three purely attractive'' &
+2026-08-26 & ``smooth'' $\to$ ``purely attractive'' &
 the square well is discontinuous. Review point, Sec.~4. \\
 2026-08-26 & Pöschl-Teller: closed form for $a$ only &
 $r_0$ and the zero-energy function are known only at unitarity. Review point,
 Sec.~4. \\
-2026-08-26 & Aziz HFD-B implemented, Sec.~\ref{sec:aziz} &
+2026-08-26 & Aziz HFD-B implemented &
 first potential with no free parameters, so its $(a,r_0)$ is a prediction, and
 it reproduces the published HFD-B dimer to four digits. Forced the unit
 conversion to be used and exposed that its core is soft. Review point,
 Sec.~18. \\
-2026-08-26 & CODATA constant for parameter-free potentials &
+2026-08-26 & CODATA constant, parameter-free &
 the inferred $\hbar^2/2m_r$ is $0.20\%$ low, which is $6\%$ in $a$ because
 $\mathrm{d}\ln a/\mathrm{d}\ln(\hbar^2/2m_r) = 48.7$ for a halo state.
 Sec.~\ref{sec:halo}. \\
-2026-08-26 & unitarity given a dimensionless threshold &
+2026-08-26 & unitarity threshold, dimensionless &
 \texttt{R < a < 1e4} replaced by $|r_0/a| >$ \texttt{UNITARITY} $=10^{-3}$. The
 old bound hid a length. Works over three decades. Review point, Sec.~9. \\
 2026-08-26 & error budget added, Sec.~\ref{sec:budget} &
 all six knobs from the review swept: \texttt{POINTS}, \texttt{V\_ZERO},
 \texttt{V\_CORE}, \texttt{R\_START\_FRACTION}, the edge stencil, \texttt{brentq}.
 Review point, Sec.~18. \\
-2026-08-26 & \texttt{R\_START\_FRACTION} lifted to module level &
+2026-08-26 & \texttt{R\_START\_FRACTION} exposed &
 it was inline in \texttt{numerov}; a knob that cannot be turned cannot be
 audited. \\
 2026-08-26 & units written as definitions &
 $V_{\mathrm{code}}=(m_r/\hbar^2)V_{\mathrm{phys}}$ and the same for $E$, plus
 $[V]=[E]=\mathrm{fm}^{-2}$ and the conversion for $V$. Five review points
 descend from this one. Sec.~2. \\
-2026-08-26 & finite range called a choice, not a property &
+2026-08-26 & finite range: a choice, not a property &
 only the square well has one; the others come from $|V(R)|=10^{-12}$.
 Sec.~3. \\
 2026-08-26 & $[C_6]=\mathrm{fm}^4$, $[C_{12}]=\mathrm{fm}^{10}$ written &
@@ -106,7 +106,7 @@ it can be negative, and it is a statement about the wavefunction. Sec.~9. \\
 no logarithm of a dimensional quantity. App.~A1. \\
 2026-08-26 & $p_1$, $p_2$ defined, with units &
 including that \texttt{LennardJones} takes $C_6$ first. App.~B. \\
-2026-08-26 & every error labelled absolute or relative &
+2026-08-26 & errors labelled absolute or relative &
 plus $r_0/a$ as the dimensionless measure, which explains why zero range misses
 the deuteron by $36\%$ and helium by $8.6\%$. Sec.~18. \\
 2026-08-26 & figure caption $10^{10}\to10^{5}$ &
@@ -705,9 +705,9 @@ a gap of about $1.5\times10^{4}$, so
 sits $47\times$ above one group and $314\times$ below the other. Every one of
 the twelve cases gets the Table 2 count for any threshold from $10^{-2}$ to
 $10^{-4}$; it fails at $10^{-5}$, where the Lennard-Jones at unitarity stops
-being recognised. Three decades of margin, tested in
-\texttt{test\_the\_unitarity\_threshold\_is\_not\_fragile}. A threshold that
-worked at only one value would be a fit, not a criterion.
+being recognised. Three decades of margin, and all three are
+covered by a test. A threshold that worked at only one value would be a fit,
+not a criterion.
 
 \subsection{The normalisation, and why it is needed}
 
@@ -1594,10 +1594,9 @@ is amplified.
 inferred constant is good enough everywhere else: the four tunable potentials
 are fitted to a target, so a small error in the constant is absorbed into the
 fitted parameters and never shows. Only a potential with no free parameters has
-nowhere to hide it. \textbf{Second}, Eq.~\eqref{eq:halosens} is a warning label
-for the three-body work: if $0.2\%$ in a constant becomes $6\%$ in $a$ for two
-particles, quantities computed near unitarity need their inputs specified to
-more digits than feels reasonable.}
+nowhere to hide it. \textbf{Second}, Eq.~\eqref{eq:halosens} is a warning
+label for anything computed near unitarity: if $0.2\%$ in a constant becomes
+$6\%$ in $a$, the inputs need more digits than feels reasonable.}
 
 \section{What is missing}
 
