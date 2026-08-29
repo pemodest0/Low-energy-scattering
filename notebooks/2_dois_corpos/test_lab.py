@@ -157,6 +157,90 @@ def test_aziz_reproduces_the_published_dimer():
     assert abs(E_mK / -1.69 - 1) < 5e-3, E_mK
 
 
+def test_helium_benchmark_four_potentials():
+    """Four parameter-free potentials against a published table.
+
+    Reference: Motovilov, Sandhas, Sofianos & Kolganova, Eur. Phys. J. D 13, 33
+    (2001), arXiv:physics/9910016. Table I gives the dimer energy and the He-He
+    scattering length for HFDHE2, HFD-B, LM2M2 and TTY; the Appendix (Tables IX
+    and X) gives the parameters. Both come from the same paper, so this is a
+    closed loop: their parameters in, their numbers out.
+
+    They state hbar^2/m = 12.12 K.A^2, so that value is used here rather than
+    CODATA. Mixing the two would shift a by several percent -- see
+    test_aziz_reproduces_the_published_dimer for why.
+
+        potential   a (A)      E (mK)
+        HFDHE2      124.65     -0.83012
+        HFD-B        88.50     -1.68541
+        LM2M2       100.23     -1.30348
+        TTY         100.01     -1.30962
+
+    HFD-B is given a looser tolerance on a. Its ENERGY reproduces to six
+    figures, which means the physics agrees, but a comes out at 88.60 against
+    their 88.50. The other three agree on both to five figures with the same
+    code, so this is specific to that row and is not understood. It is left
+    visible rather than tuned away.
+    """
+    h2 = 12.12
+    casos = [
+        (lab.AzizHFDHE2,      124.65,  -0.83012, 1e-3),
+        (lab.AzizHFDB,         88.50,  -1.68541, 2e-3),
+        (lab.AzizLM2M2,       100.23,  -1.30348, 1e-3),
+        (lab.TangToenniesYiu, 100.01,  -1.30962, 1e-3),
+    ]
+    for cls, a_ref, E_ref, tol_a in casos:
+        pot = cls(h2)
+        a, r0, nodes = lab.scattering(pot)
+        assert abs(a / a_ref - 1) < tol_a, (pot.name, "a", a, a_ref)
+        assert nodes == 1, (pot.name, "nodes", nodes)
+
+        guess = lab.E_finite_range(a, r0, h2) / (2 * h2)
+        E_mK = lab.bound_energy(pot, guess) * 2 * h2 * 1e3
+        assert abs(E_mK / E_ref - 1) < 1e-4, (pot.name, "E", E_mK, E_ref)
+
+
+def test_hfd_family_reproduces_its_own_minimum():
+    """Each Aziz potential must put its minimum at rm with depth eps.
+
+    Checks the transcription of Table IX with no external number: three
+    potentials, three parameter sets, and a mistyped digit in any of A, alpha,
+    beta, D or the C's moves the minimum off (rm, -eps).
+    """
+    h2 = 12.12
+    for cls in (lab.AzizHFDHE2, lab.AzizHFDB, lab.AzizLM2M2):
+        pot = cls(h2)
+        grid = [2.5 + 0.0001 * k for k in range(10001)]
+        valores = [float(pot.V(r)) for r in grid]
+        r_min = grid[valores.index(min(valores))]
+        assert abs(r_min - pot.RM) < 2e-3, (pot.name, r_min, pot.RM)
+
+        depth = min(valores) * 2.0 * h2
+        assert abs(depth / -pot.EPS - 1) < 1e-3, (pot.name, depth, -pot.EPS)
+
+
+def test_tty_is_insensitive_to_its_validity_cutoff():
+    """TTY has no wall at V_CORE; its inner cutoff is a validity limit.
+
+    The damping argument b(x) = 2 beta - p/x changes sign at 0.3156 A, below
+    which the published expression diverges to -infinity. Integration starts at
+    BREAKDOWN_MARGIN times that radius. If the result depended on the margin,
+    the cutoff would be doing physics, which it must not.
+    """
+    original = lab.BREAKDOWN_MARGIN
+    try:
+        lab.BREAKDOWN_MARGIN = 1.15
+        a0, r00, n0 = lab.scattering(lab.TangToenniesYiu(12.12))
+        for margem in (1.05, 1.5, 2.0, 3.0):
+            lab.BREAKDOWN_MARGIN = margem
+            a, r0, nodes = lab.scattering(lab.TangToenniesYiu(12.12))
+            assert abs(a / a0 - 1) < 1e-6, (margem, "a", a, a0)
+            assert abs(r0 / r00 - 1) < 1e-6, (margem, "r0", r0, r00)
+            assert nodes == n0, (margem, "nodes")
+    finally:
+        lab.BREAKDOWN_MARGIN = original
+
+
 def test_the_unitarity_threshold_is_not_fragile():
     """UNITARITY decides when a is 'infinite' for the bound-state count.
 

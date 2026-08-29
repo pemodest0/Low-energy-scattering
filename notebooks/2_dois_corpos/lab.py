@@ -51,14 +51,27 @@ SOURCES
     [3] Cencek, W. et al. J. Chem. Phys. 136, 224303 (2012)
         doi:10.1063/1.4712218
         Helium-4 dimer a, r0 and binding energy. Ref. [22] of [1].
-    [4] Aziz, R. A.; McCourt, F. R. W.; Wong, C. C. K. Molec. Phys. 61, 1487 (1987)
-        The HFD-B(HE) helium-helium potential. Parameters as tabulated in
-        Boronat & Casulleras, arXiv:cond-mat/9309015, Appendix A.
+    [4] The helium-helium potentials, original references:
+        HFDHE2  Aziz, R. A. et al. J. Chem. Phys. 70, 4330 (1979)
+        HFD-B   Aziz, R. A.; McCourt, F. R. W.; Wong, C. C. K.
+                Molec. Phys. 61, 1487 (1987)
+        LM2M2   Aziz, R. A.; Slaman, M. J. J. Chem. Phys. 94, 8047 (1991)
+        TTY     Tang, K. T.; Toennies, J. P.; Yiu, C. L.
+                Phys. Rev. Lett. 74, 1546 (1995)
+    [5] Motovilov, A. K.; Sandhas, W.; Sofianos, S. A.; Kolganova, E. A.
+        Eur. Phys. J. D 13, 33 (2001), arXiv:physics/9910016
+        Appendix, Tables IX and X: the parameters of all four potentials in [4],
+        tabulated side by side. Table I: the dimer energies and scattering
+        lengths they obtain, which is what test_helium_benchmark checks against.
+        PARAMETERS ARE TAKEN FROM HERE, not from memory or from secondary
+        summaries. A mistyped potential parameter fails nowhere -- it just
+        produces a plausible wrong answer.
 """
 import math
 import numpy as np
 from scipy.integrate import simpson
 from scipy.optimize import brentq
+from scipy.special import gammainc
 
 # Below V_ZERO we treat the potential as gone. Above V_CORE the Lennard-Jones
 # core is too steep to integrate through, and the wavefunction is zero there
@@ -106,6 +119,15 @@ R_START_FRACTION = 1e-6
 # near unitarity, so 0.20% in the constant becomes 6% in a. The He-4 dimer is a
 # halo state and amplifies everything. Parameter-free potentials use this value.
 H2_2MU_HE4 = 12.11932
+
+# How far outside its breakdown radius the TTY potential is allowed to start,
+# as a multiple of that radius. Its damping argument b(x) changes sign at
+# x = p/(2 beta) = 0.3156 A and the published expression means nothing below.
+# This is a truncation knob like V_ZERO and V_CORE and belongs in the error
+# budget: the check is that (a, r0) do not move when it is varied, which they
+# do not, because V there is 2e5 K and the wavefunction is zero to machine
+# precision long before the grid reaches it.
+BREAKDOWN_MARGIN = 1.15
 
 
 # =============================================================================
@@ -199,16 +221,27 @@ class LennardJones:
         return 0.5 * (self.C12 / r ** 12 - self.C6 / r ** 6)
 
 
-class AzizHFDB:
-    """The real helium-helium potential. HFD-B(HE), Ref. [4].
+class HFDFamily:
+    """The Aziz semi-empirical helium potentials. HFDHE2, HFD-B, LM2M2.
 
-    THIS ONE HAS NO FREE PARAMETERS. The four potentials above are shapes we
-    tune until they sit at a chosen (a, r0). This one is fixed by spectroscopy
-    and ab initio theory, so feeding it in and reading (a, r0) out is a
-    prediction, not a fit -- the only falsifiable test in this file.
+    THESE HAVE NO FREE PARAMETERS. The four potentials above are shapes we tune
+    until they sit at a chosen (a, r0). These are fixed by spectroscopy and
+    ab initio theory, so feeding one in and reading (a, r0) out is a prediction,
+    not a fit -- the only falsifiable objects in this file.
 
-        V(r) = eps [ A exp(-alpha x + beta x^2) - F(x) (C6/x^6 + C8/x^8 + C10/x^10) ]
-        F(x) = exp(-(D/x - 1)^2) for x < D, else 1,      x = r / rm
+    All three share one functional form, differing only in the parameter table:
+
+        V(r) = eps [ Vb(x) + Va(x) ],                    x = r / rm
+        Vb(x) = A exp(-alpha x + beta x^2)
+                - F(x) (C6/x^6 + C8/x^8 + C10/x^10)
+        F(x)  = exp(-(D/x - 1)^2) for x <= D, else 1
+
+    Va is zero for HFDHE2 and HFD-B. LM2M2 adds a bump over a finite interval:
+
+        Va(x) = Aa [ sin(2 pi (x - z1)/(z2 - z1) - pi/2) + 1 ],  z1 <= x <= z2
+
+    HFDHE2 has beta = 0, which is what "B-type" refers to: HFD-B added that
+    quadratic term to the exponent.
 
     UNITS ARE THE POINT HERE
         The published parameters are in kelvin and angstrom, not in code units.
@@ -234,12 +267,12 @@ class AzizHFDB:
     R IS NOT CLOSED FORM
         Unlike the other four, |V(R)| = V_ZERO cannot be solved on paper here,
         so R comes from brentq. Honest cost of using a real potential.
-    """
-    name = "Aziz HFD-B"
 
-    EPS, RM, D = 10.948, 2.963, 1.4826
-    A, ALPHA, BETA = 1.8443101e5, 10.43329537, -2.27965105
-    C6, C8, C10 = 1.36745214, 0.42123807, 0.17473318
+    Parameters from Table IX of [5], which tabulates all three side by side.
+    """
+    name = "HFD family"
+    AA = 0.0                    # Va is absent unless a subclass says otherwise
+    Z1 = Z2 = 0.0
 
     def __init__(self, h2_2mu):
         self.h2_2mu = h2_2mu
@@ -249,10 +282,136 @@ class AzizHFDB:
 
     def V(self, r):
         x = np.asarray(r, dtype=float) / self.RM
-        F = np.where(x < self.D, np.exp(-(self.D / x - 1.0) ** 2), 1.0)
+        F = np.where(x <= self.D, np.exp(-(self.D / x - 1.0) ** 2), 1.0)
         disp = self.C6 / x ** 6 + self.C8 / x ** 8 + self.C10 / x ** 10
-        V_phys = self.EPS * (self.A * np.exp(-self.ALPHA * x + self.BETA * x * x) - F * disp)
-        return V_phys / (2.0 * self.h2_2mu)
+        Vb = self.A * np.exp(-self.ALPHA * x + self.BETA * x * x) - F * disp
+        if self.AA != 0.0:
+            inside = (x >= self.Z1) & (x <= self.Z2)
+            arg = 2.0 * math.pi * (x - self.Z1) / (self.Z2 - self.Z1) - math.pi / 2.0
+            Vb = Vb + np.where(inside, self.AA * (np.sin(arg) + 1.0), 0.0)
+        return self.EPS * Vb / (2.0 * self.h2_2mu)
+
+
+class AzizHFDHE2(HFDFamily):
+    """HFDHE2, Aziz et al., J. Chem. Phys. 70, 4330 (1979). The 1979 original."""
+    name = "Aziz HFDHE2"
+    EPS, RM, D = 10.8, 2.9673, 1.241314
+    A, ALPHA, BETA = 544850.4, 13.353384, 0.0
+    C6, C8, C10 = 1.3732412, 0.4253785, 0.178100
+
+
+class AzizHFDB(HFDFamily):
+    """HFD-B, Aziz, McCourt & Wong, Molec. Phys. 61, 1487 (1987)."""
+    name = "Aziz HFD-B"
+    EPS, RM, D = 10.948, 2.963, 1.4826
+    A, ALPHA, BETA = 184431.01, 10.43329537, -2.27965105
+    C6, C8, C10 = 1.36745214, 0.42123807, 0.17473318
+
+
+class AzizLM2M2(HFDFamily):
+    """LM2M2, Aziz & Slaman, J. Chem. Phys. 94, 8047 (1991).
+
+    HFD-B plus the Va bump. That small addition moves the dimer energy from
+    -1.685 mK to -1.303 mK, a 23% change from a term whose peak is 0.0052 in
+    units of eps -- another reading of the halo amplification.
+    """
+    name = "Aziz LM2M2"
+    EPS, RM, D = 10.97, 2.9695, 1.4088
+    A, ALPHA, BETA = 189635.353, 10.70203539, -1.90740649
+    C6, C8, C10 = 1.34687065, 0.41308398, 0.17060159
+    AA, Z1, Z2 = 0.0026, 1.003535949, 1.454790369
+
+
+class TangToenniesYiu:
+    """TTY, Tang, Toennies & Yiu, Phys. Rev. Lett. 74, 1546 (1995).
+
+    Purely theoretical, from perturbation theory -- no fit to experiment at all.
+    Structurally different from the Aziz family, and it lands within 0.2% of
+    LM2M2 on both the dimer energy and the scattering length, which is a
+    non-trivial agreement between a semi-empirical fit and a first-principles
+    calculation.
+
+        V(x) = A [ Vex(x) + Vdisp(x) ],        x in bohr, V in kelvin
+        Vex(x)   = D x^p exp(-2 beta x),       p = 7/(2 beta) - 1
+        Vdisp(x) = -sum_{n=3}^{N} C_2n f_2n(x) / x^(2n)
+        f_2n(x)  = 1 - exp(-b x) sum_{k=0}^{2n} (b x)^k / k!
+        b(x)     = 2 beta - (7/(2 beta) - 1) / x
+
+    Only C6, C8 and C10 are given; the rest come from the recurrence
+
+        C_2n = (C_{2n-2} / C_{2n-4})^3 C_{2n-6}
+
+    up to n = N = 12, so the series runs C6 through C24.
+
+    Parameters from Table X of [5]. Note the length unit is the bohr, not the
+    angstrom: this is the one potential here whose native length is atomic, so
+    r has to be converted on the way in.
+
+    THE FORM BREAKS DOWN AT SMALL r, AND THAT IS NOT A BUG HERE
+        The damping argument b(x) = 2 beta - p/x changes sign at
+        x = p/(2 beta) = 0.596 bohr = 0.3156 A. Below that, b x is negative, the
+        truncated series stops damping anything, and Vdisp runs off to -infinity
+        -- V(0.2 A) evaluates to -7e13 K. The published form is simply not meant
+        to be evaluated there. Ref. [5] never sees it: they impose a hard core at
+        c = 1.0 A.
+
+        We do the same thing the Lennard-Jones does: start at r_min where
+        V = V_CORE, which lands at ~0.44 A, well outside the breakdown. The
+        wavefunction is zero to machine precision through a wall that high, so
+        nothing physical is lost -- but the potential must never be sampled
+        below r_min, and that is why r_min is found by bracketing DOWN from the
+        minimum rather than up from zero.
+    """
+    name = "TTY"
+
+    A_K, BETA, D = 315766.2067, 1.3443, 7.449
+    C6, C8, C10 = 1.461, 14.11, 183.5
+    N = 12
+    BOHR = 0.52917                      # angstrom per bohr, the value used in [5]
+    RM = 2.97                           # only a bracket start, not a parameter
+
+    def __init__(self, h2_2mu):
+        self.h2_2mu = h2_2mu
+        # build the dispersion coefficients once, by the published recurrence
+        c = [self.C6, self.C8, self.C10]
+        while len(c) < self.N - 2:
+            c.append((c[-1] / c[-2]) ** 3 * c[-3])
+        self.C = c
+        self.p = 7.0 / (2.0 * self.BETA) - 1.0
+
+        # r_min is NOT set by V_CORE here. The core is soft -- V saturates at
+        # about 2.0e5 K, which is 8.5e3 in code units, below V_CORE. What sets
+        # r_min is the validity of the published form: b(x) changes sign at
+        # x = p/(2 beta), and the expression is meaningless below it. We start
+        # a margin outside that radius. See BREAKDOWN_MARGIN.
+        self.r_breakdown = self.p / (2.0 * self.BETA) * self.BOHR
+        self.r_min = BREAKDOWN_MARGIN * self.r_breakdown
+        self.R = brentq(lambda s: abs(self.V(s)) - V_ZERO, self.RM, 1e4, xtol=1e-12)
+
+    def V(self, r):
+        x = np.atleast_1d(np.asarray(r, dtype=float)) / self.BOHR   # angstrom -> bohr
+        bx = 2.0 * self.BETA * x - self.p                   # b(x) * x, algebraically
+        Vex = self.D * x ** self.p * np.exp(-2.0 * self.BETA * x)
+
+        # The damping function IS the regularised lower incomplete gamma:
+        #
+        #     f_2n(x) = 1 - exp(-bx) sum_{k=0}^{2n} (bx)^k / k! = P(2n+1, bx)
+        #
+        # because Q(m, y) = exp(-y) sum_{k=0}^{m-1} y^k/k! for integer m. Using
+        # gammainc instead of the written-out sum is not a convenience: the
+        # literal form subtracts two nearly equal numbers, and C_2n/x^(2n)
+        # reaches 1e12 by n = 12, so the surviving roundoff is amplified twelve
+        # orders. Measured with the literal form, V oscillates in sign between
+        # 0.36 and 0.44 A -- +3.5e7, -9.4e6, +3.0e6 K -- which is cancellation,
+        # not physics. gammainc is stable over the whole range and handles the
+        # large-bx limit, where f_2n -> 1, without overflowing.
+        Vdisp = np.zeros_like(x)
+        for j, C2n in enumerate(self.C):
+            n = j + 3
+            Vdisp = Vdisp - C2n * gammainc(2 * n + 1, bx) / x ** (2 * n)
+
+        out = self.A_K * (Vex + Vdisp) / (2.0 * self.h2_2mu)
+        return out if np.ndim(r) else out[0]
 
 
 # The strength parameter always comes first, the scale parameter second.
