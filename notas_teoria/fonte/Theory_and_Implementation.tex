@@ -30,92 +30,20 @@
 
 \begin{abstract}
 \noindent
-This document takes apart the two-body low-energy scattering code: every
-function, every term, every parameter, and the reason behind each choice. It is
-not a user manual --- it is the explanation of \emph{why}. Every numerical
-constant that appears in the code has here the calculation or the measurement
-that fixed it. The errors made and corrected are collected in
-Sec.~\ref{sec:autopsy}, because they are the most instructive part.
+We solve the $s$-wave radial equation for two particles at low energy and
+extract the scattering length $a$, the effective range $r_0$ and the
+bound-state energy, for four model potentials and four measured helium-helium
+potentials. Each numerical constant is derived or measured here rather than
+asserted, each approximation is given the magnitude of the error it costs, and
+each result is checked against a closed form or a published value. The record
+of how the code changed over time is in its version history and is not
+reproduced here.
 \end{abstract}
 
 \tableofcontents
 \newpage
 
 % ======================================================================
-\section*{Revision history}
-
-\begin{center}
-\footnotesize
-\begin{tabular}{@{}l@{\hspace{6pt}}l@{\hspace{6pt}}p{7.0cm}@{}}
-\toprule
-date & what & why \\
-\midrule
-2026-08-26 & $C_6\!\to\!L^4C_6$, $C_{12}\!\to\!L^{10}C_{12}$ &
-the old $L^6$ came from treating $V$ as dimensionless. Review by L.~Madeira.
-It also unblocked the helium Lennard-Jones, which had been silently dropped
-(Sec.~\ref{sec:helium-lj}). \\
-2026-08-26 & scale-invariance test added &
-the property that was wrong is directly testable; it now guards itself. \\
-2026-08-26 & 9 orders of magnitude $\to$ 13 &
-eV was being compared against K without converting. Review point, Sec.~1. \\
-2026-08-26 & matching equation, denominator &
-the notes showed $u'(R)+\kappa u(R)$; the code divides by
-$\max(|u|,|u'|,1)$. Review point, Sec.~11. \\
-2026-08-26 & ``the deuteron has a node'' removed &
-the bound state is nodeless; the zero-energy solution is what carries a node.
-Review point, Sec.~11. \\
-2026-08-26 & spurious-node entry marked wrong &
-a zero product never satisfies $<0$, so that was never the cause. Review point,
-App.~A2. \\
-2026-08-26 & ``smooth'' $\to$ ``purely attractive'' &
-the square well is discontinuous. Review point, Sec.~4. \\
-2026-08-26 & Pöschl-Teller: closed form for $a$ only &
-$r_0$ and the zero-energy function are known only at unitarity. Review point,
-Sec.~4. \\
-2026-08-26 & Aziz HFD-B implemented &
-first potential with no free parameters, so its $(a,r_0)$ is a prediction, and
-it reproduces the published HFD-B dimer to four digits. Forced the unit
-conversion to be used and exposed that its core is soft. Review point,
-Sec.~18. \\
-2026-08-26 & CODATA constant, parameter-free &
-the inferred $\hbar^2/2m_r$ is $0.20\%$ low, which is $6\%$ in $a$ because
-$\mathrm{d}\ln a/\mathrm{d}\ln(\hbar^2/2m_r) = 48.7$ for a halo state.
-Sec.~\ref{sec:halo}. \\
-2026-08-26 & unitarity threshold, dimensionless &
-\texttt{R < a < 1e4} replaced by $|r_0/a| >$ \texttt{UNITARITY} $=10^{-3}$. The
-old bound hid a length. Works over three decades. Review point, Sec.~9. \\
-2026-08-26 & error budget added, Sec.~\ref{sec:budget} &
-all six knobs from the review swept: \texttt{POINTS}, \texttt{V\_ZERO},
-\texttt{V\_CORE}, \texttt{R\_START\_FRACTION}, the edge stencil, \texttt{brentq}.
-Review point, Sec.~18. \\
-2026-08-26 & \texttt{R\_START\_FRACTION} exposed &
-it was inline in \texttt{numerov}; a knob that cannot be turned cannot be
-audited. \\
-2026-08-26 & units written as definitions &
-$V_{\mathrm{code}}=(m_r/\hbar^2)V_{\mathrm{phys}}$ and the same for $E$, plus
-$[V]=[E]=\mathrm{fm}^{-2}$ and the conversion for $V$. Five review points
-descend from this one. Sec.~2. \\
-2026-08-26 & finite range: a choice, not a property &
-only the square well has one; the others come from $|V(R)|=10^{-12}$.
-Sec.~3. \\
-2026-08-26 & $[C_6]=\mathrm{fm}^4$, $[C_{12}]=\mathrm{fm}^{10}$ written &
-same fact as the scaling exponents, read off the units. Sec.~4. \\
-2026-08-26 & $r_0$ no longer ``the size of the potential'' &
-it can be negative, and it is a statement about the wavefunction. Sec.~9. \\
-2026-08-26 & $x=\ln(r/r_*)$, $r_*=1$~fm &
-no logarithm of a dimensional quantity. App.~A1. \\
-2026-08-26 & $p_1$, $p_2$ defined, with units &
-including that \texttt{LennardJones} takes $C_6$ first. App.~B. \\
-2026-08-26 & errors labelled absolute or relative &
-plus $r_0/a$ as the dimensionless measure, which explains why zero range misses
-the deuteron by $36\%$ and helium by $8.6\%$. Sec.~18. \\
-2026-08-26 & figure caption $10^{10}\to10^{5}$ &
-$10^{10}$ is what the reference prescribes; the code uses $10^{5}$. Review
-point, Sec.~4. \\
-\bottomrule
-\end{tabular}
-\end{center}
-
 \section{What universality means here}
 \label{sec:universality}
 
@@ -238,7 +166,7 @@ which turns the equation into
 \end{equation}
 the only equation the code ever solves, at $E = 0$ and at $E < 0$ alike.
 
-\why{It is tempting to summarise this as ``$\hbar = m_r = 1$, lengths in fm''.
+\why{A common shorthand for this is ``$\hbar = m_r = 1$, lengths in fm''.
 That is imprecise, and the imprecision has consequences. Distances stay in fm;
 they are not rescaled. So Eq.~\eqref{eq:codeunits} does \emph{not} make
 $V_{\mathrm{code}}$ and $E_{\mathrm{code}}$ dimensionless --- it gives them
@@ -269,7 +197,7 @@ and since $\hbar^2/2m_r$ is the constant usually tabulated,
   \label{eq:conversion}
 \end{equation}
 
-\why{That factor of 2 is easy to lose. The check that would expose it is in
+\why{The factor of 2 is checked in
 Sec.~\ref{sec:data}: with it wrong, the inferred constant would not come out at
 $41.47$ MeV$\cdot$fm$^2$.}
 
@@ -376,7 +304,7 @@ each shape:
     &&\Longrightarrow\quad r_{\min} = \left(\frac{C_{12}}{2V_{\text{core}}}\right)^{1/12}
 \end{align}
 
-\why{An earlier version searched for these radii numerically, sweeping a global
+\why{An earlier implementation searched for these radii numerically, over a global
 40\,000-point grid. Solving on paper removed that grid, removed a helper
 function, and made the result exact instead of limited by the sweep resolution.}
 
@@ -426,12 +354,189 @@ $\hbar^2/m_r$ prefactor and \emph{do} reproduce Table~3 exactly as printed. The
 mismatch is therefore specific to Eq.~(121); the likely reading is $2m_r$ in its
 denominator. The code uses the $\tfrac12$.
 
-\why{This is the kind of detail that survives unnoticed because the result
+\why{The discrepancy survives casual inspection because the result
 \emph{looks} right either way --- the curves have the expected shape. Only the
 numerical comparison against the published table exposes it.}
 
 % ======================================================================
+\section{Every symbol in every potential}
+\label{sec:symbols}
+
+Each potential is a formula with named constants. This section says what each
+name means physically, what it is called in the source, and what units it
+carries. Nothing here is new physics; it exists so that no symbol in this
+document is left undefined.
+
+Throughout, $r$ is the separation between the two particles and $V(r)$ the
+potential energy at that separation. Recall from Eq.~\eqref{eq:codeunits} that
+the code works with $V_{\mathrm{code}} = (m_r/\hbar^2)V_{\mathrm{phys}}$, so
+every $V$ below carries $\mathrm{fm}^{-2}$ for the nuclear case and
+$\text{\AA}^{-2}$ for helium.
+
+\subsection{The three one-scale models}
+
+\[
+  V_{\text{well}} = -v\mu^2 \;\; (r<R),\qquad
+  V_{\text{PT}} = \frac{-v\mu^2}{\cosh^2(\mu r)},\qquad
+  V_{\text{gauss}} = -v\mu^2 e^{-\mu^2r^2}
+\]
+
+\begin{center}
+\small
+\begin{tabular}{@{}l@{\hspace{4pt}}p{8.0cm}@{\hspace{4pt}}l@{\hspace{4pt}}l@{}}
+\toprule
+symbol & what it is & in the code & units \\
+\midrule
+$v$ & \textbf{how deep}, as a pure number. Written this way so that
+      $v$ alone decides whether a bound state exists, independently of range.
+      & \texttt{v}, first argument & --- \\
+$\mu$ & \textbf{how wide}, inversely: large $\mu$ is a narrow potential.
+      Its reciprocal $1/\mu$ is the range.
+      & \texttt{mu}, second argument & $\mathrm{fm}^{-1}$ \\
+$v\mu^2$ & the depth in energy units. The two always appear together because
+      only that product has the dimensions of $V$.
+      & --- & $\mathrm{fm}^{-2}$ \\
+$R$ & where the potential stops acting. Exact for the well, $R=1/\mu$; a
+      chosen truncation for the other two, Eq.~\eqref{eq:rangechoice}.
+      & \texttt{self.R} & fm \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+The three differ only in shape. The well is flat then vanishes abruptly; the
+Pöschl-Teller falls off exponentially; the Gaussian falls off faster than any
+exponential. All three are purely attractive: $V<0$ everywhere.
+
+\subsection{Lennard-Jones}
+
+\[
+  V_{LJ}(r) = \tfrac12\left(\frac{C_{12}}{r^{12}} - \frac{C_6}{r^{6}}\right)
+\]
+
+\begin{center}
+\small
+\begin{tabular}{@{}l@{\hspace{4pt}}p{8.0cm}@{\hspace{4pt}}l@{\hspace{4pt}}l@{}}
+\toprule
+symbol & what it is & in the code & units \\
+\midrule
+$C_{12}$ & strength of the \textbf{repulsion}. Two atoms cannot overlap: their
+      electrons are forbidden to share a state, and pushing them together costs
+      energy that rises steeply. The exponent 12 is chosen for convenience, not
+      derived.
+      & \texttt{C12}, \emph{second} argument & $\mathrm{fm}^{10}$ \\
+$C_6$ & strength of the \textbf{attraction}. Even with no net charge, the
+      electron cloud of each atom fluctuates; the fluctuations correlate and
+      pull the atoms together. The exponent 6 \emph{is} derived, from
+      second-order perturbation theory on the dipole interaction.
+      & \texttt{C6}, \emph{first} argument & $\mathrm{fm}^{4}$ \\
+$r_{\min}$ & where integration starts, at $V=\texttt{V\_CORE}$. The repulsion
+      diverges at $r=0$ and cannot be integrated through.
+      & \texttt{self.r\_min} & fm \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\why{The constructor takes $C_6$ \emph{first},
+although the potential is universally named ``12--6'' after the exponents in
+descending order. Swapping them changes nothing that raises an error, because
+both are positive, and the tuning still converges --- onto the wrong labels.}
+
+\subsection{The Aziz family: HFDHE2, HFD-B, LM2M2}
+
+\[
+  V(r) = \varepsilon\Bigl[\,\underbrace{A e^{-\alpha x+\beta x^2}}_{\text{repulsion}}
+  \;-\; \underbrace{F(x)\Bigl(\tfrac{C_6}{x^6}+\tfrac{C_8}{x^8}+\tfrac{C_{10}}{x^{10}}\Bigr)}_{\text{attraction, damped}}\Bigr],
+  \qquad x=\frac{r}{r_m}
+\]
+
+\begin{center}
+\small
+\begin{tabular}{@{}l@{\hspace{4pt}}p{8.0cm}@{\hspace{4pt}}l@{\hspace{4pt}}l@{}}
+\toprule
+symbol & what it is & in the code & units \\
+\midrule
+$\varepsilon$ & \textbf{depth of the well}: the energy that binds the two atoms
+      at their preferred separation. For helium about $10.9$~K, which is
+      minute, and is why the dimer barely holds together.
+      & \texttt{EPS} & K \\
+$r_m$ & the \textbf{preferred separation}, where $V$ is deepest. About
+      $2.96$~\AA. By construction $V(r_m)=-\varepsilon$, which is what the
+      transcription test checks.
+      & \texttt{RM} & \AA \\
+$x=r/r_m$ & separation measured in units of $r_m$, so $x=1$ is the bottom of
+      the well. & --- & --- \\
+$A$ & \textbf{height} of the repulsive wall, in units of $\varepsilon$. Of order
+      $10^5$: the wall is five orders above the well. & \texttt{A} & --- \\
+$\alpha$ & \textbf{how fast} the wall falls off with distance. & \texttt{ALPHA} & --- \\
+$\beta$ & a \textbf{curvature correction} to that fall-off. Zero for HFDHE2;
+      adding it is what the ``B'' in HFD-B refers to. & \texttt{BETA} & --- \\
+$C_6,C_8,C_{10}$ & the \textbf{attraction}, in decreasing order of reach.
+      $C_6$ is dipole with dipole, $C_8$ dipole with quadrupole, $C_{10}$ the
+      next correction. Each is weaker and shorter-ranged than the last.
+      & \texttt{C6}, \texttt{C8}, \texttt{C10} & --- \\
+$F(x)$ & the \textbf{brake}. The $1/r^6$ law is derived for atoms far apart;
+      close in it is wrong and diverges. $F$ switches the attraction off
+      smoothly. & inline in \texttt{V} & --- \\
+$D$ & \textbf{where the brake acts}: $F=1$ above $x=D$ and is cut off below.
+      & \texttt{D} & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+LM2M2 adds one term to the same form,
+\[
+  V_a(x) = A_a\Bigl[\sin\Bigl(\tfrac{2\pi(x-\zeta_1)}{\zeta_2-\zeta_1}-\tfrac{\pi}{2}\Bigr)+1\Bigr],
+  \qquad \zeta_1\le x\le\zeta_2,
+\]
+a single smooth bump of height $A_a$ spanning $\zeta_1$ to $\zeta_2$ and zero
+elsewhere (\texttt{AA}, \texttt{Z1}, \texttt{Z2}). Its peak is $0.0026$ in units
+of $\varepsilon$ --- about a quarter of a percent of the well depth --- and it
+moves the dimer energy from $-1.685$ to $-1.303$~mK, a change of $23\%$. That
+ratio is the halo amplification of Eq.~\eqref{eq:halosens} seen from another
+direction.
+
+\subsection{TTY}
+
+\[
+  V(r) = A\bigl[\,\underbrace{D\,\chi^{p}e^{-2\beta \chi}}_{\text{repulsion}}
+  \;-\;\underbrace{\textstyle\sum_{n=3}^{N} C_{2n}f_{2n}(\chi)\,\chi^{-2n}}_{\text{attraction, damped}}\bigr],
+  \qquad \chi = r/a_0
+\]
+
+\begin{center}
+\small
+\begin{tabular}{@{}l@{\hspace{4pt}}p{8.0cm}@{\hspace{4pt}}l@{\hspace{4pt}}l@{}}
+\toprule
+symbol & what it is & in the code & units \\
+\midrule
+$A$ & overall \textbf{energy scale}. & \texttt{A\_K} & K \\
+$\chi$ & separation in \textbf{bohr}, not \aa ngstr\"om. This is the only
+      potential here whose native length is atomic, so $r$ is converted on the
+      way in. & \texttt{BOHR} & --- \\
+$D$ & \textbf{strength} of the repulsive term. & \texttt{D} & --- \\
+$\beta$ & \textbf{decay rate} of the repulsion. & \texttt{BETA} & bohr$^{-1}$ \\
+$p=\frac{7}{2\beta}-1$ & \textbf{not a free parameter.} It is fixed by how the
+      atomic wavefunction falls off far from the nucleus, which is what makes
+      this potential theoretical rather than fitted.
+      & \texttt{self.p} & --- \\
+$C_6,C_8,C_{10}$ & as above. Only these three are given; the rest follow from
+      the published recurrence $C_{2n}=(C_{2n-2}/C_{2n-4})^3C_{2n-6}$ up to
+      $n=N$. & \texttt{C6}, \texttt{C8}, \texttt{C10} & --- \\
+$N$ & how far the dispersion series runs: $N=12$, so $C_6$ through $C_{24}$.
+      & \texttt{N} & --- \\
+$f_{2n}$ & the \textbf{brake}, one per term, and here it depends on distance
+      through $b(\chi)=2\beta-p/\chi$. It is the regularised lower incomplete
+      gamma $P(2n+1,b\chi)$; Sec.~\ref{sec:aziz} explains why it must be
+      evaluated that way. & \texttt{gammainc} & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ======================================================================
 \section{Numerov: the integrator}
+\label{sec:numerov}
 
 Numerov solves equations of the form $u'' = W(r)\,u$, which is exactly
 Eq.~\eqref{eq:radial} with $W = 2(V-E)$. The recursion is
@@ -452,7 +557,7 @@ $u'' = Wu$, we have $u^{(4)} = (Wu)''$, and that second derivative can be
 approximated by the \emph{same} central difference, without evaluating anything
 at new points. Substituting and regrouping gives Eq.~\eqref{eq:numerov}.
 
-\why{This is why Numerov reaches order $h^4$ at the cost of a second-order
+\why{Numerov therefore reaches order $h^4$ at the cost of a second-order
 scheme: it never evaluates $W$ away from the grid. The price is a
 \emph{three-term} recursion --- each point depends on the two before it, so an
 error made at the start travels all the way out.}
@@ -465,6 +570,7 @@ error made at the start travels all the way out.}
 
 % ======================================================================
 \section{The logarithmic grid}
+\label{sec:loggrid}
 \label{sec:log}
 
 \subsection{The problem}
@@ -489,8 +595,10 @@ The Lennard-Jones is squeezed from both sides: its core reaches $V=10^5$, so
 $\sqrt{2V}=447$ and the characteristic length there is $0.002$ fm, while its
 $1/r^6$ tail pushes $R$ out to $125$ fm. \textbf{No uniform step serves both.}
 
-The consequence was measured, and it is a real error: the Lennard-Jones $r_0$
-\emph{drifted} as the number of points doubled, instead of converging.
+The consequence was measured, and it is a real error. On a uniform grid the
+Lennard-Jones $r_0$ read $1.74257$, then $1.74215$, then $1.74165$ as the
+number of points doubled: it \emph{drifted} instead of converging, and the
+drift was larger than the change being resolved.
 
 \begin{figure}[htbp]\centering
   \includegraphics[width=0.72\textwidth]{figures/convergence.pdf}
@@ -538,7 +646,7 @@ the physics. Second, and decisively: Eq.~\eqref{eq:log} is still of the form
 $w'' = W w$, which is the \emph{only} thing Numerov requires. The recursion does
 not change at all; only what goes into it does.
 
-\why{Changing the independent variable is the standard move when a problem has
+\why{Changing the independent variable is standard when a problem has
 two very different scales. Here they differ by five orders of magnitude:
 $0.002$ fm in the core against $125$ fm in the tail.}
 
@@ -552,6 +660,7 @@ $0.002$ fm in the core against $125$ fm in the tail.}
 
 % ======================================================================
 \section{The two starts}
+\label{sec:starts}
 
 Numerov needs \emph{two} initial values, and the code picks between two cases:
 
@@ -572,7 +681,7 @@ what the code writes.
 small; we impose $u(r_{\min}) = 0$ with unit slope, and the same conversion
 $w = u/\sqrt{r}$ gives $w_1 \simeq h\,e^{x_0/2}$.
 
-\why{Getting the start wrong is not a local mistake: by the three-term
+\why{An incorrect start is not a local error: by the three-term
 recursion, the error propagates through the whole integration. A measurement
 from this work: for the Lennard-Jones, the fourth-order start correction
 $u_1 = h + h^3W_0/6$ amounts to \emph{129\%} of $h$. It did not fix that
@@ -581,6 +690,7 @@ is at stake.}
 
 % ======================================================================
 \section{The slope at the edge}
+\label{sec:slope}
 
 Gluing the solution onto the analytic form needs $u(R)$ and $u'(R)$. The value
 comes out directly; the derivative uses a five-point one-sided difference:
@@ -595,7 +705,7 @@ calculation in Sec.~\ref{sec:log}:
   \frac{du}{dr}\Big|_{R} = e^{-x_N/2}\Bigl(\tfrac12 w_N + \frac{dw}{dx}\Big|_R\Bigr).
 \end{equation}
 
-\why{Two reasons for the one-sided formula instead of a central difference. It
+\why{The one-sided formula is used instead of a central difference for two reasons. It
 is order $h^4$, matching the rest of the method --- a central one would be
 $O(h^2)$ and would spoil the global order. And it uses \emph{interior points
 only}, so it never crosses the square well's discontinuity.}
@@ -628,6 +738,7 @@ magnitude}, with the same number of points.
 \label{sec:r0meaning}
 
 \subsection{The scattering length}
+\label{sec:a}
 
 Beyond $R$ the solution is the straight line $u = C(1 - r/a)$. It crosses zero
 at $r=a$, and knowing $u(R)$ and $u'(R)$ fixes the line:
@@ -709,7 +820,15 @@ being recognised. Three decades of margin, and all three are
 covered by a test. A threshold that worked at only one value would be a fit,
 not a criterion.
 
+\why{The reading must be taken \emph{outside} the range, not at the last point
+where the potential still acts. Inside a square well $V\neq0$, so the solution
+there is not the straight line and the tangent construction does not apply.
+Measured on the deuteron well, matching one point too early biases the bound
+state by $0.44\%$ --- four orders above the $10^{-10}$ the method otherwise
+reaches.}
+
 \subsection{The normalisation, and why it is needed}
+\label{sec:norm}
 
 Equation~\eqref{eq:radial} is homogeneous: if $u$ is a solution, so is $Cu$. The
 start chose an arbitrary normalisation, so $u$ is not yet comparable with
@@ -724,6 +843,7 @@ compares $u$ against $g_0$, and the comparison only makes sense once both are on
 the same scale.}
 
 \subsection{The effective range}
+\label{sec:r0}
 
 \begin{equation}
   r_0 = 2\int_0^\infty \Bigl[g_0(r)^2 - u(r)^2\Bigr]dr .
@@ -734,7 +854,7 @@ The integrand measures \emph{how far the true solution departs from the line}.
 Outside the range $u = g_0$ and it vanishes identically, so the integral does
 end at $R$.
 
-\why{It is tempting to read $r_0$ as ``the size of the potential''. For the
+\why{It is inaccurate to read $r_0$ as ``the size of the potential''. For the
 square well the temptation is strong, because at every pole of $a$ we get
 $r_0/R = 1$ exactly --- and it is precisely because the analogy works so well
 there that it should not be generalised. In general $r_0$ is not a geometric
@@ -780,6 +900,7 @@ to $5.6\times10^{-12}$.}
 
 % ======================================================================
 \section{Counting bound states}
+\label{sec:nodes}
 
 The code counts \emph{zeros of the zero-energy solution}. It is a striking fact
 that the scattering solution, at $E=0$, knows how many bound states the
@@ -819,11 +940,12 @@ tuning ends by checking it.}
 test is \texttt{u[i]*u[i+1] < 0.0}, and a product of zero is not less than zero,
 so it never could. Running from \texttt{i = 0} and from \texttt{i = 1} gives the
 same count on all four potentials, and in three of them $u_0$ is not zero
-anyway. See the autopsy, Sec.~\ref{sec:autopsy}, for what is and is not known
-about the original symptom.
+anyway. What did fix the original symptom is not recorded and is
+not reconstructed here.
 
 % ======================================================================
 \section{The bound state}
+\label{sec:bound}
 
 Beyond the edge, with $E<0$, the solution must be the decaying exponential. That
 gives the matching condition
@@ -831,6 +953,7 @@ gives the matching condition
   \boxed{\;g(E) \equiv
     \frac{u'(R) + \kappa\,u(R)}{\max\bigl(|u(R)|,\,|u'(R)|,\,1\bigr)} = 0,
     \qquad \kappa = \sqrt{-2E}\;}
+  \label{eq:match}
 \end{equation}
 
 \why{Two separate decisions are packed into that expression.
@@ -862,7 +985,7 @@ guess, and \texttt{brentq} merely refines it within $[1.8\,g,\;0.3\,g]$:
     return brentq(gap, 1.8 * guess, 0.3 * guess, xtol=1e-15)
 \end{lstlisting}
 
-\why{An earlier version scanned 120 energies on a logarithmic grid just to find
+\why{An earlier implementation scanned 120 energies on a logarithmic grid to find
 where the function changed sign. That was waste: the approximate answer was
 already in hand and was being ignored. Replacing the scan by the guess made the
 calculation $3.5\times$ faster \emph{and} more accurate. There is also a
@@ -871,6 +994,7 @@ effective-range expansion is good.}
 
 % ======================================================================
 \section{The inverse problem: tuning}
+\label{sec:tune}
 
 Given a target $(a, r_0)$, find the parameters. It is a nonlinear $2\times2$
 system, and $a$ has \emph{poles}: it jumps from $+\infty$ to $-\infty$ every
@@ -1036,7 +1160,7 @@ $^4$He dimer & $12.095$ K$\cdot$\AA$^2$ & $12.12$ & $0.21\%$ \\
 \end{tabular}
 \end{center}
 
-\why{This is a \textbf{test}, not a convenience. Recovering both known constants
+\why{This is a test, not a convenience. Recovering both known constants
 proves Table~1 is internally consistent --- and, incidentally, that the factor
 of 2 in Eq.~\eqref{eq:conversion} is right.}
 
@@ -1114,70 +1238,13 @@ grid convergence & halving the points may change nothing \\
 \end{tabular}
 \end{center}
 
-\why{No check says ``same as last time''. Such a check would only prove the code
+\why{No check compares against a stored previous run. Such a check would only prove the code
 is consistent with its own mistakes.}
 
 The last one is what \emph{found} the uniform-grid bug. It halves the points
 rather than doubling them, deliberately: since the total error has a minimum,
 the useful question is ``have we converged coming from below?'' and not ``what
 happens deep in the roundoff regime?''.
-
-% ======================================================================
-\section{Autopsy: the errors made}
-\label{sec:autopsy}
-\label{sec:autopsy}
-
-This section exists because the cause of an error is usually worth more than the
-result.
-
-\subsection*{1. Numerov dropping from order 4 to order 1}
-\textbf{Symptom:} the square well converged far too slowly.
-\textbf{Cause:} a step straddled the discontinuity; Numerov assumes $W$ is
-smooth across the three points it uses. \textbf{Fix:} the grid ends exactly on
-the edge and the derivative uses interior points only. \textbf{Gain:} six orders
-of magnitude.
-
-\subsection*{2. The Lennard-Jones $r_0$ drifting}
-\textbf{Symptom:} $1.74257 \to 1.74215 \to 1.74165$ as the points doubled.
-\textbf{Diagnosis:} two wrong hypotheses were discarded before the right one ---
-it was not the tail (truncating at 30 fm kept the drift) and not the start
-(a fourth-order correction changed nothing). It was $h\sqrt{|W|} = 2.78$ in the
-core. \textbf{Fix:} logarithmic grid. \textbf{Confirmation:} the new value
-agrees with an independent method to seven digits.
-
-\subsection*{3. Matching inside the well}
-\textbf{Symptom:} the well's energy came out $0.44\%$ wrong.
-\textbf{Cause:} the match used the \emph{last} point where the potential still
-acted --- which, in a well, is inside, where $V\neq0$. \textbf{Fix:} match
-outside.
-
-\subsection*{4. The node count, and a diagnosis that was wrong}
-\textbf{Symptom:} every potential reported one extra bound state.
-\textbf{Recorded cause:} $u_0 = 0$ counted as a sign change.
-\textbf{That diagnosis does not survive checking.} The test in the code is
-\texttt{u[i] * u[i+1] < 0.0}, and a product of zero is not less than zero, so
-$u_0=0$ could never have been counted. Running the loop from \texttt{i = 0} and
-from \texttt{i = 1} gives the \emph{same} count for all four potentials, and in
-three of them $u_0$ is not even zero. Starting at \texttt{i = 1} is harmless, but
-it cannot have been what fixed the symptom. What did is no longer recorded, and
-is deliberately not reconstructed: an autopsy with a gap in it is more use than
-one with a guess in it.
-
-\subsection*{5. The inner term that only applied to the Lennard-Jones}
-\textbf{Symptom:} residual error of $2.4\times10^{-6}$ in the well's $r_0$.
-\textbf{Cause:} the logarithmic grid does not cover $[0, r_{\text{start}}]$, and
-the analytic term sat inside an \texttt{if}. \textbf{Fix:} make it
-unconditional --- one \texttt{if} fewer and three orders of magnitude better.
-
-\subsection*{6. Citations taken on trust}
-\textbf{Symptom:} three potentials were attributed to the wrong equation numbers
-(74 instead of 70, 118 instead of 120, 120 instead of 121), and the node
-counting was attributed to a theorem that the paper never mentions.
-\textbf{Cause:} the citations were written from memory rather than checked
-against the source. \textbf{Fix:} a full pass with the paper open, which also
-turned up the factor of two in Sec.~\ref{sec:halffactor}.
-\textbf{Lesson:} a plausible citation and a verified citation look identical on
-the page.
 
 % ======================================================================
 \section{Results}
@@ -1289,7 +1356,7 @@ tuning, $r_0$ against target & $10^{-6}$ & \textbf{absolute} \\
 \end{tabular}
 \end{center}
 
-\why{The last two rows used to be one row reading ``$10^{-10}$''. Splitting them
+\why{The last two rows were previously one row reading ``$10^{-10}$''. Splitting them
 is not pedantry: the code asserts \texttt{abs(r0 - target) < 1e-6}, an absolute
 tolerance in fm, and \texttt{abs(a/target - 1) < 1e-6}, a relative one. Those
 are different requirements, and at unitarity, where $a\to\infty$, only the
@@ -1320,7 +1387,7 @@ deuteron & $5.4112$ & $1.744$ & $0.322$ & $36.3\%$ \\
 \end{tabular}
 \end{center}
 
-\why{This single column explains a result that otherwise looks arbitrary. The
+\why{This column accounts for a result that would otherwise appear arbitrary. The
 zero-range formula misses the deuteron by $36\%$ and the helium dimer by only
 $8.6\%$ --- a factor of $4.2$. The ratio $r_0/a$ differs between them by a factor
 of $3.6$. Zero range is the approximation that throws $r_0$ away, so its error
@@ -1354,7 +1421,7 @@ $32001$ & $1.4\times10^{-11}$ & $2.7\times10^{-10}$ & $1.3\times10^{-10}$ & $\ma
 \end{tabular}
 \end{center}
 
-\why{This is the one knob where more is not better, and the table shows why.
+\why{This is the one parameter for which larger values are not better.
 The three purely attractive potentials are flat from 4001 upward --- they sit at
 machine precision and stop caring. The Lennard-Jones does not: its error falls
 to 8001 and then \emph{climbs} by two orders of magnitude out to 32001. That is
@@ -1653,165 +1720,48 @@ $r_0$, reliable only to $\sim10^{-6}$ and limited by roundoff.
 
 % ======================================================================
 \appendix
-\section{The three functions in full}
+\section{Where each piece of the code is derived}
 
-The body of the central functions, so that no line is left unexplained. The
-numbered comments refer to the notes below each block.
+The source is annotated line by line and is not reproduced here. This table
+maps each construct to the section that establishes it.
 
-\subsection{\texttt{numerov} --- the integrator}
-
-\begin{lstlisting}
-def numerov(pot, E):
-    r_start = pot.r_min if pot.r_min > 0.0 else pot.R * 1e-6          # (1)
-
-    x = np.linspace(math.log(r_start), math.log(pot.R), POINTS)       # (2)
-    h = x[1] - x[0]
-    r = np.exp(x)
-    W = 2.0 * (pot.V(r) - E) * r * r + 0.25                           # (3)
-    f = 1.0 - h * h * W / 12.0                                        # (4)
-
-    w = np.zeros(POINTS)
-    if pot.r_min > 0.0:
-        w[1] = h * math.exp(x[0] / 2.0)                               # (5)
-    else:
-        w[0] = math.sqrt(r[0])                                        # (6)
-        w[1] = math.sqrt(r[1])
-    for i in range(1, POINTS - 1):
-        w[i + 1] = ((12.0 - 10.0*f[i]) * w[i] - f[i-1]*w[i-1]) / f[i+1]   # (7)
-
-    u = np.exp(x / 2.0) * w                                           # (8)
-
-    dwdx = (25.0*w[-1] - 48.0*w[-2] + 36.0*w[-3]
-            - 16.0*w[-4] + 3.0*w[-5]) / (12.0 * h)                    # (9)
-    slope = math.exp(-x[-1] / 2.0) * (0.5 * w[-1] + dwdx)             # (10)
-
-    return r, u, x, h, slope, r_start
-\end{lstlisting}
-
-\begin{enumerate}\setlength\itemsep{1pt}
-\item Where to start: outside the core if there is one, otherwise near the
-      origin, because $\ln 0$ does not exist. The skipped stretch enters
-      analytically.
-\item The grid is uniform in $x = \ln(r/r_*)$, $r_*=1$~fm by
-      Eq.~\eqref{eq:logsub}, and ends \emph{exactly} at $\ln R$.
-\item The effective potential of Eq.~\eqref{eq:log}. The $r^2$ comes from
-      $e^{2x}$; the $0.25$ is the $\tfrac14$ the substitution generated.
-\item Numerov's $f$. Note it is a \emph{vector}, computed once for the whole
-      grid before the loop.
-\item Hard-core start: $u=0$, $u'=1$, converted through $w = u/\sqrt{r}$.
-\item Regular start: $u\simeq r$, hence $w\simeq\sqrt{r}$. Two points are needed
-      because the recursion has three terms.
-\item The recursion. It is the only line that actually integrates the equation.
-\item Back from $w$ to $u$. From here on everything is in physical units.
-\item Five-point one-sided derivative, order $h^4$, interior points only.
-\item Conversion of the derivative to radius: $du/dr = e^{-x/2}(w/2 + dw/dx)$.
-\end{enumerate}
-
-\subsection{\texttt{scattering} --- the three readings}
-
-\begin{lstlisting}
-def scattering(pot):
-    r, u, x, h, slope, r_start = numerov(pot, 0.0)                    # (1)
-
-    if slope == 0.0:
-        a = math.inf                                                  # (2)
-    else:
-        a = pot.R - u[-1] / slope
-
-    u = u * (1.0 - pot.R / a) / u[-1]                                 # (3)
-    line = 1.0 - r / a
-
-    r0 = 2.0 * simpson((line ** 2 - u ** 2) * r, x=x)                 # (4)
-    s = r_start
-    r0 = r0 + 2.0 * (s - s**2 / a + s**3 / (3.0 * a**2))              # (5)
-
-    nodes = 0
-    for i in range(1, POINTS - 1):                                    # (6)
-        if u[i] * u[i + 1] < 0.0:
-            nodes = nodes + 1
-    if pot.R < a < 1e4:
-        nodes = nodes + 1                                             # (7)
-
-    return a, r0, nodes
-\end{lstlisting}
-
-\begin{enumerate}\setlength\itemsep{1pt}
-\item Zero energy: the only case in which the exterior solution is a straight line.
-\item A horizontal line means exact unitarity, and $a=\infty$ is the right
-      answer --- not an error to be avoided.
-\item The normalisation. Without it the following integral would not be defined,
-      because the equation is homogeneous.
-\item The integral of Eq.~\eqref{eq:r0}. The \texttt{* r} is the Jacobian
-      $dr = r\,dx$.
-\item The stretch $[0, r_{\text{start}}]$, done on paper.
-\item The loop starts at 1. This is cosmetic, not a fix: the test is
-      \texttt{u[i]*u[i+1] < 0}, and a zero product never counts, so starting at
-      0 gives the same answer --- verified on all four potentials.
-\item The exterior node at $r=a$, which exists only if $a$ is finite and larger
-      than $R$.
-\end{enumerate}
-
-\subsection{\texttt{tune} --- the inverse problem}
-
-\begin{lstlisting}
-def tune(name, a_target, r0_target, strength, scale, nodes_target=None):
-    if math.isinf(a_target):
-        inv_a_target = 0.0                                            # (1)
-    else:
-        inv_a_target = 1.0 / a_target
-
-    for step in range(25):                                            # (2)
-        strength = match_a(name, scale, strength, inv_a_target)       # (3)
-        a, r0, nodes = scattering(POTENTIALS[name](strength, scale))
-        if abs(r0 - r0_target) < 1e-7:
-            break
-
-        def r0_error(trial_scale):                                    # (4)
-            s = match_a(name, trial_scale, strength, inv_a_target)
-            a2, r02, n2 = scattering(POTENTIALS[name](s, trial_scale))
-            return r02 - r0_target
-
-        scale = find_root(r0_error, scale)
-
-    strength = match_a(name, scale, strength, inv_a_target)           # (5)
-    a, r0, nodes = scattering(POTENTIALS[name](strength, scale))
-
-    ok = abs(r0 - r0_target) < 1e-6
-    if nodes_target is not None and nodes != nodes_target:
-        ok = False                                                    # (6)
-
-    return strength, scale, a, r0, nodes, ok
-\end{lstlisting}
-
-\begin{enumerate}\setlength\itemsep{1pt}
-\item Unitarity with no special case: $a=\infty$ is simply $1/a=0$.
-\item Twenty-five attempts at most. Leaving early means it converged.
-\item Inner loop: fixes the strength so that $1/a$ matches, scale held.
-\item This nested function is the cost of the algorithm: for every scale it
-      tries, it runs the \emph{entire} inner loop again.
-\item One last adjustment of the strength, because the scale moved last.
-\item The \texttt{ok} flag. Without it, a tuning that landed on the wrong state
-      would pass unnoticed.
-\end{enumerate}
-
-\section{The data, with values}
-
-\subsection*{\texttt{TARGETS} --- Table 2 of~\cite{rbef}}
 \begin{center}
-\begin{tabular}{lrrc}
+\small
+\begin{tabular}{@{}lll@{}}
 \toprule
-case & $a$ (fm) & $r_0$ (fm) & bound states \\
+function & step & derived in \\
 \midrule
-\texttt{nn} (neutron-neutron) & $-18.5$ & $2.7$ & 0 \\
-\texttt{unitarity} & $\pm\infty$ & $1.0$ & 0 \\
-\texttt{deuteron} & $5.4$ & $1.7$ & 1 \\
+\texttt{numerov}
+  & choice of $r_{\text{start}}$        & Sec.~\ref{sec:starts} \\
+  & grid uniform in $\ln(r/r_*)$        & Sec.~\ref{sec:loggrid}, Eq.~\eqref{eq:logsub} \\
+  & effective potential $W$             & Eq.~\eqref{eq:log} \\
+  & the three-term recursion            & Sec.~\ref{sec:numerov} \\
+  & grid ending exactly on $R$          & Sec.~\ref{sec:slope} \\
+  & five-point one-sided slope          & Sec.~\ref{sec:slope} \\
+\addlinespace
+\texttt{scattering}
+  & $a$ from the tangent at $R$         & Sec.~\ref{sec:a} \\
+  & when $a$ counts as infinite         & Sec.~\ref{sec:unitaritythreshold} \\
+  & rescaling $u$ onto the line         & Sec.~\ref{sec:norm} \\
+  & the $r_0$ integral, Jacobian $r$    & Eq.~\eqref{eq:r0} \\
+  & the analytic piece below $r_{\text{start}}$ & Sec.~\ref{sec:r0} \\
+  & counting nodes, interior + exterior & Sec.~\ref{sec:nodes} \\
+\addlinespace
+\texttt{bound\_energy}
+  & the matching condition              & Eq.~\eqref{eq:match} \\
+  & sum rather than ratio               & Sec.~\ref{sec:bound} \\
+  & the normalising denominator         & Sec.~\ref{sec:bound} \\
+  & why no search is needed             & Sec.~\ref{sec:bound} \\
+\addlinespace
+\texttt{tune}
+  & two nested one-dimensional roots    & Sec.~\ref{sec:tune} \\
+  & chasing $1/a$ and not $a$           & Sec.~\ref{sec:tune} \\
+  & the node-count guard                & Sec.~\ref{sec:nodes} \\
 \bottomrule
 \end{tabular}
 \end{center}
-\noindent
-The bound-state column is not printed in Table~2; it comes from the text of
-Sec.~4.5 of~\cite{rbef}, which asks for a nodeless $u(r)$ when $a<0$ and one
-node when $a>0$.
+
+\section{The data, with values}
 
 \subsection*{\texttt{PUBLISHED} --- Tables 3 and 4, against what the tuning returns}
 Throughout, $p_1$ is the \textbf{strength} parameter and $p_2$ the
@@ -1868,16 +1818,5 @@ above $0.2\%$, (deut., Lennard-Jones) at $1.13\%$, is not of that kind: there
 the published parameters do reach the target, and the gap is the flat direction
 in $(C_{12}, C_6)$ discussed above.
 
-\subsection*{\texttt{SYSTEMS} --- Table 1, the two real systems}
-\begin{center}
-\begin{tabular}{lrrrr}
-\toprule
-system & $a$ & $r_0$ & measured $E$ & inferred $\hbar^2/2m_r$ \\
-\midrule
-deuteron & $5.4112$ fm & $1.7436$ fm & $-2.224$ MeV & $41.462$ MeV$\cdot$fm$^2$ \\
-$^4$He dimer & $90.4$ \AA & $8.0$ \AA & $-1.62$ mK & $12.095$ K$\cdot$\AA$^2$ \\
-\bottomrule
-\end{tabular}
-\end{center}
 
 \end{document}
