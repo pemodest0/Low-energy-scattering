@@ -7,6 +7,11 @@ Every check compares against something not computed here: a closed form, an
 analytic condition, or a published table. None of them asserts "the same as
 last time" -- a test like that only proves the code is consistent with its
 own mistakes.
+
+Tolerances sit about twenty times above what is measured, and no looser. A
+tolerance far above the achieved error passes whatever happens and catches
+nothing; several here were that way, calibrated for behaviour the code no
+longer has.
 """
 import math
 
@@ -29,7 +34,7 @@ def test_well_effective_range_matches_closed_form():
     v, mu = 1.7806, 0.48415
     a, r0, nodes = lab.scattering(lab.Well(v, mu))
     exact = lab.r0_well(v, 1.0 / mu)
-    assert abs(r0 / exact - 1) < 1e-8
+    assert abs(r0 / exact - 1) < 1e-10
 
 
 def test_effective_range_equals_the_range_at_every_pole():
@@ -37,7 +42,7 @@ def test_effective_range_equals_the_range_at_every_pole():
     the article predicts r0/R = 1 exactly. Fig. 6 of [1]."""
     for n in range(4):
         x = math.pi / 2 + n * math.pi
-        assert abs(lab.r0_well(x ** 2 / 2) - 1.0) < 1e-9
+        assert abs(lab.r0_well(x ** 2 / 2) - 1.0) < 1e-12
 
 
 def test_bound_state_matches_the_analytic_well():
@@ -84,9 +89,9 @@ def test_tuning_hits_its_target():
                            pub["p1"], pub["p2"], nodes_target=target["nodes"])
             strength, scale, a, r0, nodes, ok = out
             assert ok, (case, name)
-            assert abs(r0 - target["r0"]) < 1e-6, (case, name, r0)
+            assert abs(r0 - target["r0"]) < 1e-8, (case, name, r0)
             if not math.isinf(target["a"]):
-                assert abs(a / target["a"] - 1) < 1e-6, (case, name, a)
+                assert abs(a / target["a"] - 1) < 1e-9, (case, name, a)
 
 
 def test_inferred_constants_match_the_literature():
@@ -187,7 +192,7 @@ def test_helium_benchmark_four_potentials():
         (lab.AzizHFDHE2,      124.65,  -0.83012, 1e-3),
         (lab.AzizHFDB,         88.50,  -1.68541, 2e-3),
         (lab.AzizLM2M2,       100.23,  -1.30348, 1e-3),
-        (lab.TangToenniesYiu, 100.01,  -1.30962, 1e-3),
+        (lab.TangToenniesYiu, 100.01,  -1.30962, 1e-5),
     ]
     for cls, a_ref, E_ref, tol_a in casos:
         pot = cls(h2)
@@ -220,7 +225,7 @@ def test_hfd_family_reproduces_its_own_minimum():
 
 
 def test_tty_is_insensitive_to_its_validity_cutoff():
-    """TTY has no wall at V_CORE; its inner cutoff is a validity limit.
+    """TTY has no wall at EPS_CORE; its inner cutoff is a validity limit.
 
     The damping argument b(x) = 2 beta - p/x changes sign at 0.3156 A, below
     which the published expression diverges to -infinity. Integration starts at
@@ -329,21 +334,12 @@ def test_scale_invariance():
     which gives C6 -> L^4 C6 and C12 -> L^10 C12. With the wrong exponent this
     test fails by 41% at L = 2.
 
-    The tolerances differ by potential, and the reason is itself a result. The
-    physics is exactly scale invariant; our truncation is not. R and r_min come
-    from the ABSOLUTE thresholds V_ZERO and V_CORE, while V rescales as 1/L^2,
-    so the cut radii do not follow L:
-
-        well          R = 1/mu, exact             -> violation ~1e-13
-        Poschl-Teller R from acosh, logarithmic   -> ~1e-10
-        Gaussian      R from sqrt(log), log       -> ~1e-11
-        Lennard-Jones R from a power law,
-                      R ~ L^(2/3), r_min ~ L^(5/6) -> ~3e-4
-
-    So the Lennard-Jones is six orders worse than the others, and it is the
-    truncation talking, not the solver. Making the cut dimensionless -- |V|R^2
-    is the natural choice, since [V_code] = fm^-2 -- would restore the symmetry,
-    and belongs in the error budget rather than here.
+    Tolerances are set just above what is measured, with a factor of ten of
+    slack and no more. They used to be far looser -- 1e-3 for the Lennard-Jones
+    -- because the cuts were absolute thresholds and the truncated problem was
+    genuinely not scale invariant. With the cuts written as |V| r^2 that is
+    fixed, and a tolerance calibrated for the broken version would let the
+    regression back in without failing.
     """
     reescala = {
         "well":  lambda p1, p2, L: (p1, p2 / L),
@@ -351,7 +347,7 @@ def test_scale_invariance():
         "gauss": lambda p1, p2, L: (p1, p2 / L),
         "lj":    lambda p1, p2, L: (p1 * L ** 4, p2 * L ** 10),
     }
-    tolerancia = {"well": 1e-9, "mpt": 1e-8, "gauss": 1e-8, "lj": 1e-3}
+    tolerancia = {"well": 1e-10, "mpt": 1e-10, "gauss": 1e-10, "lj": 1e-8}
     for name in lab.POTENTIALS:
         pub = lab.PUBLISHED[("deuteron", name)]
         a0, r00, n0 = lab.scattering(lab.POTENTIALS[name](pub["p1"], pub["p2"]))
