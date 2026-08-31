@@ -28,7 +28,7 @@ notebooks/1_um_corpo/        one particle in a central potential
 
 notebooks/2_dois_corpos/     the two-body laboratory
     lab.py                   potentials, Numerov solver, tabulated data
-    test_lab.py              8 checks against closed forms and published tables
+    test_lab.py              18 checks against closed forms and published tables
     two_body_scattering.ipynb
 
 notas_teoria/
@@ -58,12 +58,36 @@ an analytic condition, or a published table.
 | `r0/R` at the poles of `a` | exact prediction, Fig. 6 | 1.0000000000 |
 | node counts, 12 cases | Table 2 | exact |
 | tuning, 12 cases | Tables 3 and 4 | 9 within 0.2% |
+| helium dimer, 4 potentials | Motovilov *et al.*, Table I | see below |
+| each Aziz minimum | its own `(rm, -eps)` | 1e-9 |
+| the grid ends exactly on `R` | 120 reduced masses | exact |
+| physics under `r -> r/L` | four rescalings | 1e-12 |
+| every number since the last run | recorded values | 1e-12 |
 | grid convergence | halving the points | no change beyond 1e-6 |
 
-The last one is not a formality: it is what caught the one real bug in this
-code. On a uniform grid the Lennard-Jones `r0` drifted instead of converging,
-because its hard core and its van der Waals tail differ by five orders of
-magnitude in scale. A logarithmic grid fixed it.
+The helium row is the one that costs nothing and proves the most, because no
+parameter in it was fitted here. Published parameters go in, published numbers
+come out:
+
+| potential | `a` (Å) | published | `E` (mK) | published |
+|---|---|---|---|---|
+| HFDHE2 | 124.65 | 124.65 | −0.83012 | −0.83012 |
+| HFD-B | 88.60 | 88.50 | −1.68541 | −1.68541 |
+| LM2M2 | 100.23 | 100.23 | −1.30348 | −1.30348 |
+| TTY | 100.01 | 100.01 | −1.30962 | −1.30962 |
+
+Every energy agrees to six figures. HFD-B is the exception on `a`, 0.11% out
+while its energy agrees like the others; it is left visible rather than tuned
+away. Reference: Motovilov, Sandhas, Sofianos & Kolganova, *Eur. Phys. J. D*
+**13**, 33 (2001), Table I for the results and the Appendix for the parameters.
+
+Two of these checks earned their place by catching something. Grid convergence
+found the one real bug in the physics: on a uniform grid the Lennard-Jones `r0`
+drifted instead of converging, because its hard core and its tail differ by five
+orders of magnitude in scale, and a logarithmic grid fixed it. The endpoint
+check found a silent one: `exp(log(R))` does not always return `R`, so for 14%
+of reduced masses the last grid point fell outside the potential and the answer
+was wrong in the seventh figure instead of the tenth.
 
 ## Author
 
