@@ -146,6 +146,7 @@ small the expansion parameter happens to be.}
 
 % ======================================================================
 \section{Conventions and units}
+\label{sec:conv}
 
 The $s$-wave radial Schrödinger equation, written for $u(r) = r\,\psi(r)$, is
 \begin{equation}
@@ -217,6 +218,150 @@ turns on:
   = 2\left(\frac{\hbar^2}{2m_r}\right) V_{\mathrm{code}}(r).
   \label{eq:vconversion}
 \end{equation}
+
+% ======================================================================
+\section{Nondimensionalisation}
+\label{sec:adim}
+
+Section~\ref{sec:conv} rescales energies but leaves lengths carrying a unit,
+which is why $[V_{\mathrm{code}}] = \ell^{-2}$ rather than being pure numbers.
+This section removes the remaining unit.
+
+\subsection{The transformation}
+
+Start from the dimensional equation,
+\begin{equation}
+  -\frac{\hbar^2}{2m_r}\,u''(r) + V(r)\,u(r) = E\,u(r).
+\end{equation}
+Choose any length $r_*$ and set $x = r/r_*$. Since
+$\mathrm{d}^2/\mathrm{d}r^2 = r_*^{-2}\,\mathrm{d}^2/\mathrm{d}x^2$,
+\begin{equation}
+  \frac{\mathrm{d}^2u}{\mathrm{d}x^2}
+  = \frac{2m_rr_*^2}{\hbar^2}\bigl(V-E\bigr)u .
+\end{equation}
+The prefactor is the reciprocal of an energy, and that energy is the one $r_*$
+implies:
+\begin{equation}
+  \boxed{\;\varepsilon_* \equiv \frac{\hbar^2}{2m_rr_*^{2}}\;}
+  \label{eq:epsstar}
+\end{equation}
+Writing $v(x) = V(r_*x)/\varepsilon_*$ and $e = E/\varepsilon_*$,
+\begin{equation}
+  \boxed{\;u''(x) = \bigl[v(x)-e\bigr]\,u(x)\;}
+  \label{eq:adim}
+\end{equation}
+in which every symbol is a pure number.
+
+\why{\textbf{The factor of two is gone, and that is the point of doing this.}
+Equation~\eqref{eq:radial} carries $u'' = 2(V-E)u$, and the 2 is there because
+that convention divides energies by $\hbar^2/m_r$ while the length that would
+have made the equation natural, $\hbar^2/2m_r$, is the one the literature
+tabulates. Section~\ref{sec:conv} needs a boxed warning that the factor is easy
+to lose. In Eq.~\eqref{eq:adim} there is no factor to lose.}
+
+\subsection{Why $r_*$ is not physics}
+
+$r_*$ is a bookkeeping choice, not an input. It has to cancel from every
+measurable quantity, and that is checkable rather than assumed: solve
+Eq.~\eqref{eq:adim} with different $r_*$ and the dimensionless outputs must
+scale so that $a = r_*\,(a/r_*)$ is the same number.
+
+\begin{center}
+\small
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+$r_*$ (\AA) & what it is & $x_{\max}$ & $a/r_*$ & $a$ (\AA) \\
+\midrule
+$1.000$ & arbitrary & $1700.36$ & $88.439115$ & $88.439115$ \\
+$2.963$ & $r_m$ of the potential & $573.86$ & $29.847828$ & $88.439115$ \\
+$10.00$ & arbitrary & $170.04$ & $8.843911$ & $88.439115$ \\
+$64.60$ & $r_{\mathrm{vdW}}$ of $^{39}$K & $26.32$ & $1.369027$ & $88.439115$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Aziz HFD-B on the $^4$He dimer, with the cut taken at
+$|v(x_{\max})|\,x_{\max}^2 = 10^{-10}$. Four choices of $r_*$ spanning a factor
+of $65$, and $a$ agrees to eight figures. $r_0$ likewise, at $7.276317$~\AA{} in
+all four.
+
+\why{This is what the previous convention could not do. With the cut written as
+$|V(R)| = 10^{-12}$ --- a bare number carrying $\ell^{-2}$ --- the same physical
+potential gives $R = 273$~\AA{} when its parameters are written in \aa
+ngstr\"om and $R = 5.97$~\AA{} when they are written in fm, and the answers
+differ. The dimensionless cut $|v|x^2 = \varepsilon$ removes that, because
+$[v] = 1$ and $[x] = 1$.}
+
+\subsection{What is fixed and what is chosen}
+
+\begin{center}
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+fixed by the physics & chosen by us \\
+\midrule
+$\varepsilon_*$, once $r_*$ is chosen, Eq.~\eqref{eq:epsstar} & $r_*$, any length \\
+the shape of $v(x)$ & $\varepsilon$, where the tail is cut \\
+$a/r_0$, and the sign of $a$ & the grid, \texttt{POINTS} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+The left column is what a measurement can see. Note what is \emph{not} in it:
+neither $a/r_*$ nor $r_0/r_*$ is physical on its own, because $r_*$ is ours.
+The two-body problem at low energy has exactly one dimensionless number,
+$r_0/a$, together with the sign of $a$ --- which is the same quantity
+Sec.~\ref{sec:errors} argues should be reported and Sec.~\ref{sec:unitaritythreshold}
+uses to decide when $a$ counts as infinite. It arrives here for the third time,
+now as a consequence of the transformation rather than as a suggestion.
+
+\subsection{Verification against the closed forms}
+
+The square well keeps its exact range, $R = 1/\mu$, so taking $r_* = R$ puts the
+edge at $x_{\max} = 1$ and the well depth becomes the single number $-2v$.
+
+\begin{center}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+ & dimensionless & recovered & closed form \\
+\midrule
+$a$ & $2.69993651\,r_*$ & $5.39987301$ & $5.39987301$ \\
+$r_0$ & $0.84890211\,r_*$ & $1.69780422$ & $1.69780422$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Deuteron parameters, $r_* = 1/\mu = 2$~fm. Against Eqs.~(80) and (92)
+of~\cite{rbef} the errors are $1.6\times10^{-10}$ and $1.1\times10^{-11}$,
+the same accuracy the dimensional code reaches.
+
+\subsection{What this section does not settle}
+
+Three things are open, and stating them is more useful than implying they are
+not.
+
+\textbf{The value of $\varepsilon$.} The $10^{-10}$ above was chosen so that
+$x_{\max}$ landed in a convenient range. It has no pedigree. The $10^{-12}$ of
+the dimensional scheme was fixed by a convergence study in \aa ngstr\"om-based
+units and carries no meaning here, so the study has to be redone against
+$\varepsilon$ directly.
+
+\textbf{The inner start.} The outer cut is dimensionless above; the inner one
+is not. The test that produced these tables began integration at a fixed
+physical $0.30$~\AA, which is exactly the kind of hidden dimensional constant
+this section exists to remove. A dimensionless criterion for $x_{\min}$ is
+still needed.
+
+\textbf{Whether $r_*$ should be global or per potential.} The results do not
+depend on it, as the table shows. The \emph{conditioning} might: with
+$r_* = 64.6$~\AA{} the grid spans $x \in [0.005, 26]$, and with $r_* = 1$~\AA{}
+it spans $[0.3, 1700]$ --- two and a half decades apart in dynamic range. Both
+agree to eight figures for this potential. Whether that survives a stiffer one
+has not been tested.
 
 % ======================================================================
 \section{The one idea: do not integrate what is already known}
