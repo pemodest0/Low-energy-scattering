@@ -294,6 +294,28 @@ def test_unitarity_sign_does_not_leak():
         assert not conta, infinito
 
 
+def test_the_grid_ends_exactly_on_R():
+    """exp(log(R)) must not overshoot R, for any mu.
+
+    The square well decides its depth with r <= R. If the last grid point lands
+    one ulp outside, that point gets V = 0 instead of the depth, and the error
+    in a jumps from 1.6e-10 to 1.1e-3 -- seven orders, from one point.
+
+    Measured before the fix: 14% of mu values overshoot. The published
+    parameters were not among them, which is why it never surfaced until a
+    rescaling test happened to land on mu = 1/3.
+
+    numerov now pins r[-1] = pot.R. This sweeps mu widely and requires the
+    closed form to be reproduced every time.
+    """
+    for k in range(1, 120):
+        mu = 0.15 + k * 0.007
+        pot = lab.Well(1.7575, mu)
+        a, r0, nodes = lab.scattering(pot)
+        assert abs(a / lab.a_well(1.7575, pot.R) - 1) < 1e-8, (mu, a)
+        assert abs(r0 / lab.r0_well(1.7575, pot.R) - 1) < 1e-8, (mu, r0)
+
+
 def test_scale_invariance():
     """Rescaling every length by L must take (a, r0) to (L a, L r0).
 

@@ -502,6 +502,15 @@ def numerov(pot, E):
     x = np.linspace(math.log(r_start), math.log(pot.R), POINTS)
     h = x[1] - x[0]
     r = np.exp(x)
+
+    # PIN THE LAST POINT. exp(log(R)) is not guaranteed to return R, and when
+    # it overshoots by one ulp the square well evaluates V = 0 there instead of
+    # the depth, because its V tests r <= R. Measured: that single point takes
+    # the error in a from 1.6e-10 to 1.1e-3, seven orders, and it happens for
+    # 14% of mu values -- one case in seven, silently. The published parameters
+    # avoid it by luck, which is why it never showed until a rescaling test hit
+    # mu = 1/3.
+    r[-1] = pot.R
     W = 2.0 * (pot.V(r) - E) * r * r + 0.25
     f = 1.0 - h * h * W / 12.0
 

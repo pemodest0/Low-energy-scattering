@@ -881,6 +881,26 @@ is order $h^4$, matching the rest of the method --- a central one would be
 $O(h^2)$ and would spoil the global order. And it uses \emph{interior points
 only}, so it never crosses the square well's discontinuity.}
 
+\subsection*{One grid point, seven orders of magnitude}
+
+The grid ends on $R$, but \emph{ending} on it is not the same as \emph{landing}
+on it. The endpoint is computed as $e^{\ln R}$, and IEEE arithmetic does not
+guarantee that this returns $R$. When it overshoots by one unit in the last
+place, the square well --- which decides its depth by testing $r \le R$ ---
+evaluates $V = 0$ there instead of $-v\mu^2$.
+
+One point. Measured cost: the error in $a$ goes from $1.6\times10^{-10}$ to
+$1.1\times10^{-3}$.
+
+Sweeping $\mu$, the overshoot happens for $14\%$ of values --- one case in
+seven, silently, since nothing raises. The published parameters of Table~3
+of~\cite{rbef} are not among them, which is why this survived every check in
+this document until a rescaling test landed on $\mu = 1/3$, where the endpoint
+came back as $3.000\,000\,000\,000\,000\,4$.
+
+\textbf{Fix:} the last point is assigned rather than computed. A test now
+sweeps $120$ values of $\mu$ against the closed forms.
+
 \subsection*{The discontinuity finding}
 
 If a Numerov step straddles the well's jump, the method assumes $W$ is smooth
