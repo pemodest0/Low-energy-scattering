@@ -361,7 +361,53 @@ def test_scale_invariance():
 
 
 # =============================================================================
-#  3. The grid itself
+#  3. Regression: does the answer still come out the same?
+# =============================================================================
+REGRESSAO = {
+    ("nn", "well"): (-18.52772767564452, 2.694613011931579, 0),
+    ("nn", "mpt"): (-18.515125517182486, 2.7017264888963695, 0),
+    ("nn", "gauss"): (-18.553979766213992, 2.7030731785349613, 0),
+    ("nn", "lj"): (-18.501124275752748, 2.707366619642933, 0),
+    ("unitarity", "well"): (-1817950.6671322999, 1.000000222968424, 0),
+    ("unitarity", "mpt"): (-48866232.48197792, 0.9999991061822937, 0),
+    ("unitarity", "gauss"): (-446556.0658699698, 1.0002269792474439, 0),
+    ("unitarity", "lj"): (47150.34278674098, 0.9999615639122874, 0),
+    ("deuteron", "well"): (5.399873011081575, 1.6978042158807243, 1),
+    ("deuteron", "mpt"): (5.400172416472956, 1.729951144620764, 1),
+    ("deuteron", "gauss"): (5.400269859934827, 1.698930613231725, 1),
+    ("deuteron", "lj"): (5.405293663112662, 1.6973749834911627, 1),
+}
+
+
+def test_nothing_moved_since_the_last_recorded_run():
+    """The twelve published cases, pinned to the values they currently give.
+
+    This is NOT a correctness check and does not belong with the ones above.
+    Those compare against closed forms and published tables, and would catch a
+    wrong answer. This one only says the answer has not moved, and would
+    happily pin a wrong answer forever.
+
+    It earns its place by catching a different failure: a refactor that changes
+    a number silently. That happened here more than once -- rewriting a as
+    1/inv_a moved four cases in the last two digits, and migrating to
+    dimensionless cuts moved all of them. Both were correct changes, but both
+    should be seen and approved rather than discovered later.
+
+    When it fails, decide which: a regression, or a change worth recording. If
+    the latter, update the table in the same commit that causes it, and say so
+    in the message.
+    """
+    for (caso, nome), (a_ref, r0_ref, nodes_ref) in REGRESSAO.items():
+        pub = lab.PUBLISHED[(caso, nome)]
+        pot = lab.POTENTIALS[nome](pub["p1"], pub["p2"])
+        a, r0, nodes = lab.scattering(pot)
+        assert abs(a / a_ref - 1) < 1e-12, (caso, nome, "a", a, a_ref)
+        assert abs(r0 / r0_ref - 1) < 1e-12, (caso, nome, "r0", r0, r0_ref)
+        assert nodes == nodes_ref, (caso, nome, "nodes", nodes, nodes_ref)
+
+
+# =============================================================================
+#  4. The grid itself
 # =============================================================================
 def test_the_grid_is_already_converged():
     """Halve the points: if nothing moves beyond 1e-6, POINTS is enough.
