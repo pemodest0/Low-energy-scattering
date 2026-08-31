@@ -3,21 +3,36 @@
 The notebook next to this file needs nothing else.
 
 UNITS
-    Distances are in fm and are NOT rescaled. Energies and potentials are,
-    by m_r / hbar^2:
+    THE SOLVER CARRIES NO LENGTH UNIT OF ITS OWN.
+
+    It integrates u'' = 2 (V - E) u over pure numbers. Whatever length unit the
+    potential's parameters were written in is the unit that R, a and r0 come
+    back in. Distances are never rescaled; energies and potentials are, by
+    m_r / hbar^2:
 
         V_code = (m_r / hbar^2) V_phys,   E_code = (m_r / hbar^2) E_phys
 
-    so the radial equation becomes  u'' = 2 (V - E) u.
+    so V and E carry INVERSE LENGTH SQUARED, in that same unit, and are NOT
+    dimensionless. The common shorthand "hbar = m_r = 1, lengths in fm" is
+    wrong twice: it fixes a unit the code does not fix, and it calls V and E
+    pure numbers when they are not.
 
-    Note what this does and does not say. It is NOT "hbar = m_r = 1 and
-    everything is dimensionless": with r still in fm,
+    Two units appear in this file and nothing in the solver distinguishes them
+    -- the unit rides in with the potential and rides out with the answer:
 
-        [V_code] = [E_code] = fm^-2.
+        femtometre  the four model potentials, parameters from the nuclear
+                    tables of [1]; there hbar^2/2m_r is in MeV.fm^2, so
+                    [V_code] = fm^-2
+        angstrom    the measured helium potentials, published in K and A;
+                    there hbar^2/2m_r is in K.A^2, so [V_code] = A^-2
 
-    That single line fixes the units of the Lennard-Jones coefficients,
-    [C6] = fm^4 and [C12] = fm^10, and with them the exponents in the scaling
-    rule under GUESS. Going back:
+    (The letter L is deliberately not used for this. It is already the
+    rescaling factor of the scale-invariance rule under GUESS, r -> L r, and
+    the two are different things.)
+
+    Everything downstream follows: with V in inverse length squared, the
+    Lennard-Jones coefficients carry [C6] = length^4 and [C12] = length^10, and
+    with them come the exponents in the scaling rule. Going back:
 
         E_phys = 2 (hbar^2 / 2 m_r) E_code,   V_phys = 2 (hbar^2 / 2 m_r) V_code
 

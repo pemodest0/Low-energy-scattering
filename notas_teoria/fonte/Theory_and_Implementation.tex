@@ -166,21 +166,29 @@ which turns the equation into
 \end{equation}
 the only equation the code ever solves, at $E = 0$ and at $E < 0$ alike.
 
-\why{A common shorthand for this is ``$\hbar = m_r = 1$, lengths in fm''.
-That is imprecise, and the imprecision has consequences. Distances stay in fm;
-they are not rescaled. So Eq.~\eqref{eq:codeunits} does \emph{not} make
-$V_{\mathrm{code}}$ and $E_{\mathrm{code}}$ dimensionless --- it gives them
-units of inverse length squared:
+\why{A common shorthand for this is ``$\hbar = m_r = 1$, lengths in fm''. It is
+wrong twice over.
+
+\textbf{It fixes a unit the solver does not fix.} The integrator works on pure
+numbers. Whatever length unit the potential's parameters were written in is the
+unit that $R$, $a$ and $r_0$ come back in. Call it $\ell$ --- not $L$, which is
+already the rescaling factor of Sec.~\ref{sec:scale} and a different thing. Two
+choices appear in this document and nothing in the solver distinguishes them:
+$\ell=\mathrm{fm}$ for the four model potentials, whose parameters come from the
+nuclear tables of~\cite{rbef}, and $\ell=\text{\AA}$ for the measured helium
+potentials of Sec.~\ref{sec:aziz}, published in kelvin and \aa ngstr\"om. The
+unit rides in with the potential and rides out with the answer.
+
+\textbf{It suggests $V$ and $E$ are pure numbers, and they are not.} Distances
+are never rescaled, so Eq.~\eqref{eq:codeunits} gives
 \[
-  [V_{\mathrm{code}}] = [E_{\mathrm{code}}] = \mathrm{fm}^{-2}.
+  [V_{\mathrm{code}}] = [E_{\mathrm{code}}] = \ell^{-2}.
 \]
-The honest one-line statement is: \emph{distances are expressed in fm, while
-energies and potentials are rescaled by $m_r/\hbar^2$, so their numerical units
-are} $\mathrm{fm}^{-2}$. Everything about the Lennard-Jones coefficients ---
-their units in Sec.~\ref{sec:potentials}, and the exponents in the scaling rule
-of Sec.~\ref{sec:scale} --- follows from that one line. Treating $V$ as
-dimensionless is exactly how the wrong exponent $C_{12}\to C_{12}L^6$ got into
-an earlier draft.}
+Everything downstream follows from that single line: the units of the
+Lennard-Jones coefficients in Sec.~\ref{sec:potentials}, $[C_6]=\ell^4$ and
+$[C_{12}]=\ell^{10}$, and with them the exponents of the scaling rule in
+Sec.~\ref{sec:scale}. Treating $V$ as dimensionless is exactly how the wrong
+exponent $C_{12}\to C_{12}L^6$ reached an earlier draft.}
 
 \subsection*{Back to physical units}
 
@@ -368,10 +376,9 @@ carries. Nothing here is new physics; it exists so that no symbol in this
 document is left undefined.
 
 Throughout, $r$ is the separation between the two particles and $V(r)$ the
-potential energy at that separation. Recall from Eq.~\eqref{eq:codeunits} that
-the code works with $V_{\mathrm{code}} = (m_r/\hbar^2)V_{\mathrm{phys}}$, so
-every $V$ below carries $\mathrm{fm}^{-2}$ for the nuclear case and
-$\text{\AA}^{-2}$ for helium.
+potential energy at that separation. By Eq.~\eqref{eq:codeunits} every $V$ below
+carries $\ell^{-2}$, where $\ell$ is the length unit of that potential's own
+parameters: fm for the model potentials, \AA{} for the helium ones.
 
 \subsection{The three one-scale models}
 
