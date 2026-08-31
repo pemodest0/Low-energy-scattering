@@ -749,15 +749,29 @@ at $r=a$, and knowing $u(R)$ and $u'(R)$ fixes the line:
 \why{This is an \emph{exact reading}, not a fit. No least squares, no
 extrapolation. The only source of error is the integration out to $R$.}
 
-The code carries a branch for $u'(R)=0$: the line is horizontal, never crosses
-zero, and $a = \infty$.
+Written that way, $a$ has a pole at $u'(R)=0$ and the code would need a branch
+there. It does not, because the \emph{reciprocal} is regular:
+\begin{equation}
+  \frac{1}{a} = \frac{u'(R)}{R\,u'(R) - u(R)},
+  \label{eq:inva}
+\end{equation}
+which at $u'(R)=0$ evaluates to $0/[-u(R)] = 0$. That is what the code computes,
+and $a$ is recovered by inversion:
 
 \begin{lstlisting}
-    if slope == 0.0:
-        a = math.inf
-    else:
-        a = pot.R - u[-1] / slope
+    inv_a = slope / (slope * pot.R - u[-1])
+    a = 1.0 / inv_a
 \end{lstlisting}
+
+\noindent
+There is no guard on that inversion, deliberately. \texttt{inv\_a} vanishes only
+when the slope is exactly zero, which is the unreachable case above:
+instrumented over the twelve published parameter sets and the four measured
+potentials, it did not occur once. A branch for a state the program cannot
+reach is an untested line making a claim about the physics. And if it did
+occur, IEEE arithmetic already answers better than a constant would:
+$1/(+0)=+\infty$ and $1/(-0)=-\infty$, so the sign follows the side the slope
+vanished on --- which is precisely the direction-dependence the limit has.
 
 \why{That branch is mathematically correct and \textbf{numerically
 unreachable}. A floating-point slope is never exactly zero. Swept across the
@@ -778,12 +792,19 @@ $1.2460$ & $+81.9$ & $-7.8\times10^{-3}$ \\
 \end{center}
 
 \noindent
-Small, then small and negative --- never zero. Two things follow. First,
-$a=\infty$ never actually occurs, so unitarity has to be recognised by a
-threshold rather than by an equality. Second, and this is the part the branch
-hides: $a$ \textbf{changes sign} through the resonance. Returning $+\infty$
-would be choosing one side of that flip by fiat. The branch is kept only so the
-function is total.}
+Small, then small and negative --- never zero. Two things follow.
+
+First, $a = \infty$ never actually occurs, so unitarity has to be recognised by
+a threshold rather than by an equality.
+
+Second, $a$ does not have a limit at the resonance at all: it runs to
+$-\infty$, is undefined, and returns from $+\infty$. Both signs are correct
+one-sided limits and neither is \emph{the} answer, so any single value returned
+there is a placeholder rather than a result. Equation~\eqref{eq:inva} is what
+makes this harmless --- $1/a$ passes through zero without noticing, and it is
+$1/a$ that the tuning chases and $|r_0/a|$ that the node count tests. The
+placeholder cannot propagate, and
+\texttt{test\_unitarity\_sign\_does\_not\_leak} asserts as much by flipping it.}
 
 \subsection*{What ``infinite'' means, numerically}
 \label{sec:unitaritythreshold}

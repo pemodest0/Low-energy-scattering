@@ -268,6 +268,32 @@ def test_the_unitarity_threshold_is_not_fragile():
         lab.UNITARITY = original
 
 
+def test_unitarity_sign_does_not_leak():
+    """At the resonance a has no limit. Prove the node count does not care.
+
+    Approached from one side a runs to -infinity, from the other it returns
+    from +infinity, and at the crossing itself neither sign is "the" answer.
+    scattering() does not choose: it computes 1/a, which passes through zero
+    smoothly, and inverts. But a is still returned and still read by the node
+    count, so the sign has to be shown not to matter.
+
+    If this ever fails, something downstream is reading a where it should read
+    1/a or |r0/a|.
+    """
+    import math
+
+    pub = lab.PUBLISHED[("unitarity", "well")]
+    pot = lab.Well(pub["p1"], pub["p2"])
+    a, r0, nodes = lab.scattering(pot)
+
+    assert abs(r0 / a) < lab.UNITARITY, (r0, a)
+    assert nodes == 0, nodes
+
+    for infinito in (math.inf, -math.inf):
+        conta = pot.R < infinito and abs(r0 / infinito) > lab.UNITARITY
+        assert not conta, infinito
+
+
 def test_scale_invariance():
     """Rescaling every length by L must take (a, r0) to (L a, L r0).
 

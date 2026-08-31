@@ -496,19 +496,42 @@ def scattering(pot):
     r, u, x, h, slope, r_start = numerov(pot, 0.0)
 
     # Past the edge V = 0, so u is the straight line C (1 - r/a). Where that
-    # line crosses zero is the scattering length -- exact, not a fit.
+    # line crosses zero is the scattering length -- exact, not a fit:
     #
-    # The branch below is mathematically right and numerically unreachable: a
-    # float slope is never exactly 0.0. Swept across the well's resonance it
-    # goes 7.9e-3, 7.9e-4, 3.5e-7, -7.8e-4, -7.8e-3 -- small, then small and
-    # negative, never zero. So `a` is never inf in practice; it is large and
-    # it CHANGES SIGN through the resonance, which is the physical behaviour.
-    # Returning +inf here would be picking one side of that sign flip by fiat.
-    # Kept only so the function is total.
-    if slope == 0.0:
-        a = math.inf
-    else:
-        a = pot.R - u[-1] / slope
+    #     a = R - u(R)/u'(R) = [R u'(R) - u(R)] / u'(R)
+    #
+    # THE RECIPROCAL IS THE REGULAR QUANTITY, SO COMPUTE IT FIRST
+    #     Across a resonance a does not go to a limit: it runs to -infinity,
+    #     is undefined, and comes back from +infinity. Measured on the well,
+    #     sweeping v through 1.2337:
+    #
+    #         u'(R)     +1.6e-2  +7.9e-4  +3.5e-7  -7.5e-6  -1.6e-2
+    #         a           -39.7    -809    -1.8e6   +8.5e4    +41.3
+    #         1/a       -2.5e-2  -1.2e-3  -5.5e-7  +1.2e-5  +2.4e-2
+    #
+    #     1/a passes through zero without noticing. So it, and not a, is what
+    #     the code computes:
+    #
+    #         1/a = u'(R) / [R u'(R) - u(R)]
+    #
+    #     which at u'(R) = 0 evaluates to 0 / -u(R) = 0. No special case, no
+    #     division by zero, and no sign to invent.
+    #
+    # NO GUARD ON THE INVERSION, ON PURPOSE
+    #     a is what the tables report, so it is recovered by inverting. There is
+    #     no `if inv_a == 0` here, and there should not be: inv_a is zero only
+    #     when the slope is exactly zero, which is the same unreachable case as
+    #     before -- instrumented over the twelve published cases and the four
+    #     measured potentials, it never occurred once. A branch for a state the
+    #     program cannot reach is not caution, it is an untested line that
+    #     claims something about the physics.
+    #
+    #     If it ever did occur, IEEE already gives the right answer and a better
+    #     one than a hardcoded constant: 1/(+0.0) is +inf and 1/(-0.0) is -inf,
+    #     so the sign comes from which side the slope vanished on, which is
+    #     exactly the direction-dependence the limit has.
+    inv_a = slope / (slope * pot.R - u[-1])
+    a = 1.0 / inv_a
 
     # Rescale u so it joins the line at the edge, then compare the two.
     u = u * (1.0 - pot.R / a) / u[-1]
