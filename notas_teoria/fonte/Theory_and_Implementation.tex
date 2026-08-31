@@ -344,11 +344,30 @@ the same accuracy the dimensional code reaches.
 Three things are open, and stating them is more useful than implying they are
 not.
 
-\textbf{The value of $\varepsilon$.} The $10^{-10}$ above was chosen so that
-$x_{\max}$ landed in a convenient range. It has no pedigree. The $10^{-12}$ of
-the dimensional scheme was fixed by a convergence study in \aa ngstr\"om-based
-units and carries no meaning here, so the study has to be redone against
-$\varepsilon$ directly.
+\textbf{The value of $\varepsilon$ is now measured, and it is not what the old
+one translates to.} Tightening the tail cut makes the answer \emph{worse}. The
+$r_0$ integrand carries a factor $r$, so pushing $R$ outward multiplies the
+accumulated round-off by $r$. On the deuteron Lennard-Jones at 8001 points:
+
+\begin{center}
+\small
+\begin{tabular}{@{}rll@{}}
+\toprule
+$\varepsilon$ & $r_0$ & under refinement \\
+\midrule
+$10^{-6}$ & $1.699102$ & stable to $10^{-8}$ \\
+$10^{-8}$ & $1.699102$ & stable to $10^{-6}$ \\
+$10^{-10}$ & $1.699796$ & drifting, $4\times10^{-5}$ \\
+$10^{-12}$ & $1.707$ & wrong \\
+$10^{-14}$ & $-0.156$ & and $+10.4$, then $-30.2$, as the grid refines \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+$\varepsilon = 10^{-6}$ sits in the middle of the stable window. The core cut is
+converged from $10^{4}$ upward. Neither number could have been guessed from the
+dimensional values they replace.
 
 \textbf{The inner start.} The outer cut is dimensionless above; the inner one
 is not. The test that produced these tables began integration at a fixed

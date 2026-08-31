@@ -88,15 +88,28 @@ from scipy.integrate import simpson
 from scipy.optimize import brentq
 from scipy.special import gammainc
 
-# Below V_ZERO we treat the potential as gone. Above V_CORE the Lennard-Jones
-# core is too steep to integrate through, and the wavefunction is zero there
-# anyway, so we start outside it.
+# THE TWO CUTS ARE DIMENSIONLESS. [V_code] = (length)^-2, so |V(r)| r^2 is a
+# pure number in any unit, while |V(r)| alone is not. Writing the cuts as bare
+# numbers made R depend on whether the parameters were written in fm or in
+# angstrom -- the same physical potential gave R = 273 A one way and 5.97 A the
+# other. Multiplying by r^2 removes that.
+# The values come from a convergence study over all eight potentials, and they
+# are NOT the dimensional ones translated. Tightening the tail cut makes things
+# worse, not better: the r0 integrand carries a factor r, so pushing R outward
+# multiplies the accumulated round-off by r. Measured on the deuteron
+# Lennard-Jones, r0 against EPS_TAIL at 8001 points:
 #
-# [1] prescribes V(r_min) ~ 1e10 for this cut. We use 1e5 because it was
-# measured to be already converged: r0 changes by 2e-6 between 1e4 and 1e6,
-# while 1e3 is wrong by 0.2%. Starting deeper only costs stiffness.
-V_ZERO = 1e-12
-V_CORE = 1e5
+#     1e-6   1.699102     stable to 1e-8 under refinement
+#     1e-8   1.699102     stable to 1e-6
+#     1e-10  1.699796     drifting, 4e-5
+#     1e-12  1.707        wrong
+#     1e-14  -0.156       and at 16001 points, +10.4, then -30.2
+#
+# 1e-6 sits in the middle of the stable window. EPS_CORE is converged from 1e4
+# upward, where r0 stops moving beyond 1e-8; 1e3 is already within 1e-6 and
+# 1e2 is visibly wrong.
+EPS_TAIL = 1e-6           # |V(R)| R^2  : where the tail is declared over
+EPS_CORE = 1e4            # |V(r_min)| r_min^2 : where the core is declared a wall
 
 # How close to unitarity counts as unitarity, for the bound-state count only.
 #
@@ -118,7 +131,7 @@ UNITARITY = 1e-3
 # Where integration starts when there is no hard core, as a fraction of R.
 # Below this radius u is proportional to r and the piece is added analytically
 # in scattering(), so the value is a truncation knob and belongs in the error
-# budget with V_ZERO and V_CORE rather than buried in numerov().
+# budget with EPS_TAIL and EPS_CORE rather than buried in numerov().
 R_START_FRACTION = 1e-6
 
 # hbar^2 / 2 mu for the He-4 dimer, from CODATA, in K.A^2.
@@ -138,7 +151,7 @@ H2_2MU_HE4 = 12.11932
 # How far outside its breakdown radius the TTY potential is allowed to start,
 # as a multiple of that radius. Its damping argument b(x) changes sign at
 # x = p/(2 beta) = 0.3156 A and the published expression means nothing below.
-# This is a truncation knob like V_ZERO and V_CORE and belongs in the error
+# This is a truncation knob like EPS_TAIL and EPS_CORE and belongs in the error
 # budget: the check is that (a, r0) do not move when it is varied, which they
 # do not, because V there is 2e5 K and the wavefunction is zero to machine
 # precision long before the grid reaches it.
@@ -149,8 +162,8 @@ BREAKDOWN_MARGIN = 1.15
 #  The four potentials
 #
 #  Each class holds two things: the formula for V(r), and where it stops (R).
-#  R is written in closed form -- we solve |V(R)| = V_ZERO by hand for each
-#  shape, so no search is needed.
+#  R comes from the dimensionless cut |V(R)| R^2 = EPS_TAIL. Closed form for
+#  the well and the Lennard-Jones; brentq for the other two.
 # =============================================================================
 class Well:
     """V = -v mu^2 inside r < R = 1/mu, zero outside.  Eq. (70) of [1].
@@ -183,8 +196,11 @@ class PoschlTeller:
         self.v = v
         self.mu = mu
         self.r_min = 0.0
-        # v mu^2 / cosh^2(mu R) = V_ZERO
-        self.R = math.acosh(math.sqrt(v * mu ** 2 / V_ZERO)) / mu
+        # v mu^2 R^2 / cosh^2(mu R) = EPS_TAIL. No closed form once the r^2 is
+        # there, so brentq. Paid once, at construction.
+        # cosh overflows past ~350/mu, so the bracket stops well short of it
+        self.R = brentq(lambda r: abs(self.V(r)) * r * r - EPS_TAIL,
+                        1.0 / mu, 300.0 / mu, xtol=1e-13)
 
     def V(self, r):
         return -self.v * self.mu ** 2 / np.cosh(self.mu * r) ** 2
@@ -198,8 +214,9 @@ class Gaussian:
         self.v = v
         self.mu = mu
         self.r_min = 0.0
-        # v mu^2 exp(-mu^2 R^2) = V_ZERO
-        self.R = math.sqrt(math.log(v * mu ** 2 / V_ZERO)) / mu
+        # v mu^2 R^2 exp(-mu^2 R^2) = EPS_TAIL. Transcendental now; brentq.
+        self.R = brentq(lambda r: abs(self.V(r)) * r * r - EPS_TAIL,
+                        1.0 / mu, 1e2 / mu, xtol=1e-13)
 
     def V(self, r):
         return -self.v * self.mu ** 2 * np.exp(-(self.mu * r) ** 2)
@@ -229,8 +246,10 @@ class LennardJones:
     def __init__(self, C6, C12):
         self.C6 = C6
         self.C12 = C12
-        self.r_min = (0.5 * C12 / V_CORE) ** (1.0 / 12.0)   # core: 0.5 C12/r^12 = V_CORE
-        self.R = (0.5 * C6 / V_ZERO) ** (1.0 / 6.0)         # tail: 0.5 C6/r^6  = V_ZERO
+        # Both cuts keep a closed form after the r^2, with the exponent shifted
+        # by two: 0.5 C12/r^10 = EPS_CORE and 0.5 C6/R^4 = EPS_TAIL.
+        self.r_min = (0.5 * C12 / EPS_CORE) ** (1.0 / 10.0)
+        self.R = (0.5 * C6 / EPS_TAIL) ** (1.0 / 4.0)
 
     def V(self, r):
         return 0.5 * (self.C12 / r ** 12 - self.C6 / r ** 6)
@@ -271,16 +290,16 @@ class HFDFamily:
 
     THE CORE IS SOFT, AND THAT CHANGES THE START
         The Lennard-Jones diverges as 1/r^12, so the code steps around it by
-        starting at r_min where V = V_CORE. Aziz does not diverge: as r -> 0 the
+        starting at r_min where |V| r^2 = EPS_CORE. Aziz does not diverge: as r -> 0
         exponential saturates and F(x) kills the dispersion terms, so V climbs
-        to a CEILING of eps*A/(2 h2_2mu) = 8.35e4 in code units -- below V_CORE.
-        There is no radius where V = V_CORE, so r_min = 0 and the regular-origin
+        the exponential saturates, so |V| r^2 -> 0 at BOTH ends and never
+        reaches EPS_CORE. So r_min = 0 and the regular-origin
         start applies, the same one the well and the Gaussian use. Trying to
-        solve V = V_CORE here raises "f(a) and f(b) must have different signs",
-        which is the bracket telling the truth.
+        start applies, the same one the well and the Gaussian use.
 
     R IS NOT CLOSED FORM
-        Unlike the other four, |V(R)| = V_ZERO cannot be solved on paper here,
+        Unlike the well and the Lennard-Jones, |V(R)| R^2 = EPS_TAIL has no
+        closed form here,
         so R comes from brentq. Honest cost of using a real potential.
 
     Parameters from Table IX of [5], which tabulates all three side by side.
@@ -292,8 +311,9 @@ class HFDFamily:
     def __init__(self, h2_2mu):
         self.h2_2mu = h2_2mu
         self.r_min = 0.0                    # soft core: see the docstring
-        # the tail: |V| = V_ZERO, bracketed beyond the minimum
-        self.R = brentq(lambda r: abs(self.V(r)) - V_ZERO, self.RM, 1e4, xtol=1e-12)
+
+        self.R = brentq(lambda r: abs(self.V(r)) * r * r - EPS_TAIL,
+                        self.RM, self.RM * 1e5, xtol=1e-12)
 
     def V(self, r):
         x = np.asarray(r, dtype=float) / self.RM
@@ -401,7 +421,8 @@ class TangToenniesYiu:
         # a margin outside that radius. See BREAKDOWN_MARGIN.
         self.r_breakdown = self.p / (2.0 * self.BETA) * self.BOHR
         self.r_min = BREAKDOWN_MARGIN * self.r_breakdown
-        self.R = brentq(lambda s: abs(self.V(s)) - V_ZERO, self.RM, 1e4, xtol=1e-12)
+        self.R = brentq(lambda s: abs(self.V(s)) * s * s - EPS_TAIL,
+                        self.RM, self.RM * 1e5, xtol=1e-12)
 
     def V(self, r):
         x = np.atleast_1d(np.asarray(r, dtype=float)) / self.BOHR   # angstrom -> bohr
