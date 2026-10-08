@@ -614,6 +614,32 @@ def test_the_fixed_range_family_matches_the_closed_form():
         assert abs(linha["r0"] / lab.r0_well(v, 1.0 / mu) - 1.0) < 1e-9, linha
 
 
+def test_the_deep_branches_share_the_two_body_observables():
+    """Same (a, r0), different number of deeply bound dimers.
+
+    (a, r0) does not determine the potential: every branch beyond each pole of
+    a reaches the same pair again, carrying one more deep dimer. All of them
+    are indistinguishable in two-body low-energy scattering, and they are not
+    equivalent in three, because a deep dimer gives an Efimov trimer somewhere
+    to decay to -- which is what the published eta_- measures, and what the
+    shallow branch would predict to be exactly zero.
+
+    The three branches are also required to come out on a physical scale. The
+    search finds more than one solution per branch, differing in range; the
+    compact one is kept, and this checks that what is kept is of order r_vdW
+    and not twenty times it.
+    """
+    row = etrych.TABLE_III[0]
+    for deep in (0, 1, 2):
+        p1, p2 = etrych.calibrate_on_branch("well", row, deep)
+        a, r0, nodes = lab.scattering(lab.Well(p1, p2))
+        assert abs(a / row["a_minus"] - 1.0) < 1e-9, (deep, "a", a)
+        assert abs(r0 / row["r_eff"] - 1.0) < 1e-8, (deep, "r0", r0)
+        assert nodes == deep, (deep, "nodes", nodes)
+        alcance = (1.0 / p2) / etrych.R_VDW
+        assert 1.0 < alcance < 5.0, (deep, "range in r_vdW", alcance)
+
+
 # =============================================================================
 #  Plain runner, so no extra tool is needed
 # =============================================================================

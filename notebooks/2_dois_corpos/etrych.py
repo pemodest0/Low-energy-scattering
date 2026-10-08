@@ -28,6 +28,8 @@ appears: a and r0 are both lengths and tune() works on the two of them.
 """
 import math
 
+from scipy.optimize import brentq
+
 import lab
 
 # =============================================================================
@@ -268,6 +270,110 @@ def sweep_c6_alone(inv_a_reduced):
                       "strength_ratio": factor,
                       "r_min": r_min_of("lj", p1, p2_0)})
     return saida
+
+
+# =============================================================================
+#  The branch: how many deeply bound dimers the potential carries
+#
+#  (a, r0) does not determine the potential. Deepening a shape past each pole
+#  of a adds one bound state, and the same (a, r0) is reached again on every
+#  branch beyond. All of those potentials are indistinguishable in two-body
+#  low-energy scattering -- that is what universality means -- and they are NOT
+#  equivalent in three.
+#
+#  The reason is a decay channel. With deeply bound dimers in the spectrum an
+#  Efimov trimer can fall into one of them and release an atom, and the rate of
+#  that is what the Efimov width parameter eta measures. On the shallowest
+#  branch there are no deep dimers, no such channel, and eta would be exactly
+#  zero. Table III of [6] publishes eta_- for every row -- 0.27, 0.26, 0.25,
+#  0.5 and 0.33 -- so the measurement already rules the shallow branch out as
+#  a description of 39K, which carries dozens of deeply bound molecular states.
+#
+#  This makes the branch a testable choice rather than a convention: a
+#  three-body calculation on each branch can be compared against the published
+#  eta_-. The shallow branch is the control -- what zero-range universality
+#  alone would say -- and a branch with deep states is the realistic candidate.
+#
+#  Measured for the square well at a_- = -830, r_eff = 136 a0: the three
+#  branches have nearly the same range (128.0, 136.2 and 136.9 a0) and very
+#  different depths, the extra dimers coming out compact, of size 35 a0 and
+#  19 a0, well inside r_vdW = 64.6 a0.
+# =============================================================================
+def _ramos(name, deep, passos=400, teto=60.0):
+    """Walk the strength upward at unit scale, recording r0/a and the nodes.
+
+    tune() cannot be pointed at a branch: its bracket widens until the sign
+    changes and it finds its way back to the shallowest solution whatever it
+    is started from. So the branch is located first, by scanning, and only
+    then handed to a root find that stays inside it.
+    """
+    p1_0, p2_0 = unit_solution(name)
+    anterior = None
+    fora = []
+    for k in range(1, passos + 1):
+        f = teto * k / passos
+        p1, p2 = turn_up(name, f)
+        try:
+            a, r0, nodes = lab.scattering(lab.POTENTIALS[name](p1, p2))
+        except Exception:
+            anterior = None
+            continue
+        if anterior is not None and anterior[1] == nodes == deep:
+            fora.append((anterior[0], f, anterior[2], r0 / a))
+        anterior = (f, nodes, r0 / a)
+    return fora
+
+
+def at_ratio_on_branch(name, r0_over_a, deep, **kwargs):
+    """Parameters with r0 = 1 and the given r0/a, on the branch with `deep`
+    deeply bound dimers. deep = 0 is what at_ratio() returns.
+
+    Costs a scan of the strength, so it is far slower than at_ratio() and is
+    meant for the comparison described above, not for the production families.
+    """
+    if deep == 0:
+        return at_ratio(name, r0_over_a)
+
+    def razao(f):
+        p1, p2 = turn_up(name, f)
+        a, r0, nodes = lab.scattering(lab.POTENTIALS[name](p1, p2))
+        return r0 / a - r0_over_a
+
+    candidatos = []
+    for lo, hi, raz_lo, raz_hi in _ramos(name, deep, **kwargs):
+        if (raz_lo - r0_over_a) * (raz_hi - r0_over_a) > 0.0:
+            continue
+        f = brentq(razao, lo, hi, xtol=1e-14)
+        p1, p2 = turn_up(name, f)
+        a, r0, nodes = lab.scattering(lab.POTENTIALS[name](p1, p2))
+        # r0 > 0 is not optional. The ratio r0/a reaches its target with both
+        # signs flipped too, and rescaling by 1/r0 would then ask for a
+        # negative scale. The requirement is r0 = +r_eff with a = a_- < 0, and
+        # a positive rescaling cannot repair a sign.
+        if nodes != deep or r0 <= 0.0:
+            continue
+        q1, q2 = rescale(name, p1, p2, 1.0 / r0)
+        candidatos.append((lab.POTENTIALS[name](q1, q2).R, q1, q2))
+
+    if not candidatos:
+        raise RuntimeError("no branch with %d deep states reaches r0/a = %g for %s"
+                           % (deep, r0_over_a, name))
+
+    # A branch holds more than one solution: the same (a, r0) and the same
+    # node count are reached at several depths, differing in range. Measured
+    # for the square well at deep = 1: ranges of 136 a0 and 1428 a0 both
+    # qualify. The compact one is returned, because 1428 a0 is twenty-two
+    # van der Waals lengths and nothing about 39K is that long-ranged. The
+    # others are discarded here rather than left for the caller, and this is a
+    # physical judgement, not a numerical one.
+    candidatos.sort()
+    return candidatos[0][1], candidatos[0][2]
+
+
+def calibrate_on_branch(name, row, deep):
+    """a = a_-, r0 = r_eff, on the branch carrying `deep` deep dimers."""
+    p1, p2 = at_ratio_on_branch(name, ratio(row), deep)
+    return rescale(name, p1, p2, row["r_eff"])
 
 
 def main():
