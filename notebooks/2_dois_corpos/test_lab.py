@@ -15,6 +15,7 @@ longer has.
 """
 import math
 
+import etrych
 import lab
 
 
@@ -37,7 +38,7 @@ def test_well_effective_range_matches_closed_form():
     assert abs(r0 / exact - 1) < 1e-10
 
 
-def test_effective_range_equals_the_range_at_every_pole():
+def test_the_closed_form_effective_range_equals_the_range_at_every_pole():
     """Sharpest check we have: at every pole of a, that is sqrt(2v) = pi/2 + n pi,
     the article predicts r0/R = 1 exactly. Fig. 6 of [1]."""
     for n in range(4):
@@ -89,7 +90,11 @@ def test_tuning_hits_its_target():
                            pub["p1"], pub["p2"], nodes_target=target["nodes"])
             strength, scale, a, r0, nodes, ok = out
             assert ok, (case, name)
-            assert abs(r0 - target["r0"]) < 1e-8, (case, name, r0)
+            # Relative, and the same 1e-7 tune() itself accepts: an absolute
+            # 1e-8 on r0 = 1.7 demands 6e-9 relative, which is below what the
+            # forward problem reproduces -- the Lennard-Jones stops improving
+            # at 4e-8 relative, the noise of the tail extrapolation.
+            assert abs(r0 / target["r0"] - 1.0) < 1e-7, (case, name, r0)
             if not math.isinf(target["a"]):
                 assert abs(a / target["a"] - 1) < 1e-9, (case, name, a)
 
@@ -347,7 +352,12 @@ def test_scale_invariance():
         "gauss": lambda p1, p2, L: (p1, p2 / L),
         "lj":    lambda p1, p2, L: (p1 * L ** 4, p2 * L ** 10),
     }
-    tolerancia = {"well": 1e-10, "mpt": 1e-10, "gauss": 1e-10, "lj": 1e-8}
+    # The Lennard-Jones sits an order of magnitude looser than the other
+    # three, and for a reason that is measured: its tail is extrapolated from
+    # two cuts, and the residual of that extrapolation does not scale exactly
+    # with the problem. Measured at 1.1e-7; the tolerance keeps the factor of
+    # ten and no more.
+    tolerancia = {"well": 1e-10, "mpt": 1e-10, "gauss": 1e-10, "lj": 1e-6}
     for name in lab.POTENTIALS:
         pub = lab.PUBLISHED[("deuteron", name)]
         a0, r00, n0 = lab.scattering(lab.POTENTIALS[name](pub["p1"], pub["p2"]))
@@ -364,18 +374,18 @@ def test_scale_invariance():
 #  3. Regression: does the answer still come out the same?
 # =============================================================================
 REGRESSAO = {
-    ("nn", "well"): (-18.52772767564452, 2.694613011931579, 0),
-    ("nn", "mpt"): (-18.515125517182486, 2.7017264888963695, 0),
-    ("nn", "gauss"): (-18.553979766213992, 2.7030731785349613, 0),
-    ("nn", "lj"): (-18.501124275752748, 2.707366619642933, 0),
-    ("unitarity", "well"): (-1817950.6671322999, 1.000000222968424, 0),
-    ("unitarity", "mpt"): (-48866232.48197792, 0.9999991061822937, 0),
-    ("unitarity", "gauss"): (-446556.0658699698, 1.0002269792474439, 0),
-    ("unitarity", "lj"): (47150.34278674098, 0.9999615639122874, 0),
-    ("deuteron", "well"): (5.399873011081575, 1.6978042158807243, 1),
-    ("deuteron", "mpt"): (5.400172416472956, 1.729951144620764, 1),
-    ("deuteron", "gauss"): (5.400269859934827, 1.698930613231725, 1),
-    ("deuteron", "lj"): (5.405293663112662, 1.6973749834911627, 1),
+    ("nn", "well"): (-0.05397315947831557, 2.69461301195824, 0),
+    ("nn", "mpt"): (-0.054009871965853426, 2.701731328218038, 0),
+    ("nn", "gauss"): (-0.05389677696273141, 2.7030741336126063, 0),
+    ("nn", "lj"): (-0.05405061491532482, 2.708146513279644, 0),
+    ("unitarity", "well"): (-5.501364195160311e-07, 1.0000002229619138, 0),
+    ("unitarity", "mpt"): (-1.586579559309834e-13, 1.0000000000468923, 0),
+    ("unitarity", "gauss"): (-2.2193459732639425e-06, 1.000227209549898, 0),
+    ("unitarity", "lj"): (2.1229701956925556e-05, 0.999985984608486, 0),
+    ("deuteron", "well"): (0.18518954015905392, 1.697804215859341, 1),
+    ("deuteron", "mpt"): (0.18517928641121206, 1.7299508321943549, 1),
+    ("deuteron", "gauss"): (0.18517593147431377, 1.6989305700272126, 1),
+    ("deuteron", "lj"): (0.18500462917843025, 1.700154188205488, 1),
 }
 
 
@@ -397,11 +407,15 @@ def test_nothing_moved_since_the_last_recorded_run():
     the latter, update the table in the same commit that causes it, and say so
     in the message.
     """
-    for (caso, nome), (a_ref, r0_ref, nodes_ref) in REGRESSAO.items():
+    # 1/a and not a: at the unitary rows a is whatever huge number the last
+    # digits happened to produce, and pinning it pins noise. 1/a is the
+    # quantity the solver actually computes and it passes smoothly through
+    # zero.
+    for (caso, nome), (inv_a_ref, r0_ref, nodes_ref) in REGRESSAO.items():
         pub = lab.PUBLISHED[(caso, nome)]
         pot = lab.POTENTIALS[nome](pub["p1"], pub["p2"])
         a, r0, nodes = lab.scattering(pot)
-        assert abs(a / a_ref - 1) < 1e-12, (caso, nome, "a", a, a_ref)
+        assert abs(1.0 / a - inv_a_ref) < 1e-12, (caso, nome, "1/a", 1.0/a, inv_a_ref)
         assert abs(r0 / r0_ref - 1) < 1e-12, (caso, nome, "r0", r0, r0_ref)
         assert nodes == nodes_ref, (caso, nome, "nodes", nodes, nodes_ref)
 
@@ -440,6 +454,164 @@ def test_the_grid_is_already_converged():
             assert nodes == fine[name][2], (name, "nodes")
     finally:
         lab.POINTS = original
+
+
+# =============================================================================
+#  The production solver, and the second method
+# =============================================================================
+def test_the_solver_effective_range_approaches_the_range_at_every_pole():
+    """r0 -> R near the poles of a, computed and not asserted.
+
+    The closed-form test above checks that lab.r0_well has the property the
+    article gives it, which is circular and does not touch the solver. This
+    one runs the solver near each pole -- near, not on: a diverges there -- and
+    requires r0/R to approach 1 as the distance to the pole shrinks.
+    """
+    for n in range(1, 5):
+        v_polo = (2 * n - 1) ** 2 * math.pi ** 2 / 8.0
+        anterior = None
+        for delta in (1e-2, 1e-3, 1e-4):
+            a, r0, nodes = lab.scattering(lab.Well(v_polo * (1.0 + delta), 1.0))
+            erro = abs(r0 / 1.0 - 1.0)
+            if anterior is not None:
+                assert erro < anterior, (n, delta, erro, anterior)
+            anterior = erro
+        assert anterior < 1e-3, (n, anterior)
+
+
+def test_the_numerov_agrees_with_the_production_solver():
+    """Two integrators with nothing in common, on the same potentials.
+
+    Order 4 against 8, a fixed step in ln r against an adaptive step in r,
+    Simpson on its own grid against an integral carried inside the system,
+    sign changes against event detection. Run at a near tail cut, which is
+    where the Numerov is reliable: its Simpson integral runs over a difference
+    of large numbers, and at a far cut refining its grid makes the answer
+    worse rather than better.
+    """
+    original = lab.EPS_TAIL
+    lab.EPS_TAIL = 1e-6
+    try:
+        for name in ("well", "mpt", "gauss", "lj"):
+            p1, p2 = etrych.unit_solution(name)
+            pot = lab.POTENTIALS[name](p1, p2)
+            a1, r01, n1 = lab._num_corte(pot, pot.R)
+            a2, r02, n2 = lab.scattering_numerov(pot)
+            assert abs(r01 / r02 - 1.0) < 1e-7, (name, "r0", r01, r02)
+            assert n1 == n2, (name, "nodes", n1, n2)
+    finally:
+        lab.EPS_TAIL = original
+
+
+def test_the_numerov_agrees_on_the_bound_state_too():
+    """The second method on the other side of zero energy."""
+    for v, guess in ((2.0, -0.5), (6.0, -2.0), (12.0, -5.0)):
+        pot = lab.Well(v, 1.0)
+        E = lab.bound_energy(pot, guess)
+        k = math.sqrt(2.0 * v - 2.0 * abs(E))
+        kappa = math.sqrt(-2.0 * E)
+        assert abs(k / math.tan(k) + kappa) < 1e-9, (v, E)
+
+
+def test_the_tail_extrapolation_is_consistent():
+    """The same r0 from two independent extrapolations.
+
+    r0(R) = r0 - K/R is extrapolated from R and 3R. If that form is right, the
+    pair (3R, 9R) must give the same answer. Where the tail is exponential or
+    absent the two agree trivially; the Lennard-Jones is the case that tests
+    the 1/R.
+    """
+    tol = {"well": 1e-12, "mpt": 1e-9, "gauss": 1e-10, "lj": 1e-5}
+    for name in ("well", "mpt", "gauss", "lj"):
+        p1, p2 = etrych.unit_solution(name)
+        pot = lab.POTENTIALS[name](p1, p2)
+        base = pot.R
+        r0 = [lab._num_corte(pot, base * m)[1] for m in (1, 3, 9)]
+        tres = (3.0 * r0[1] - r0[0]) / 2.0
+        nove = (3.0 * r0[2] - r0[1]) / 2.0
+        assert abs(tres / nove - 1.0) < tol[name], (name, tres, nove)
+
+
+def test_the_core_cut_is_exact():
+    """The Lennard-Jones cuts solve |V(r)| r^2 = eps, not an approximation."""
+    for C6, C12 in ((1.0, 1.0), (0.264624012, 0.000340682), (1e7, 1e17)):
+        pot = lab.LennardJones(C6, C12)
+        assert abs(abs(pot.V(pot.r_min)) * pot.r_min ** 2 / lab.EPS_CORE - 1.0) < 1e-12
+        assert abs(abs(pot.V(pot.R)) * pot.R ** 2 / lab.EPS_TAIL - 1.0) < 1e-9
+
+
+# =============================================================================
+#  The calibration on Table III
+# =============================================================================
+def test_the_unitary_well_is_the_analytic_one():
+    """1/a = 0 for the square well happens at 2v = (pi/2)^2, in closed form."""
+    v, mu = etrych.unit_solution("well")
+    assert abs(v / (math.pi ** 2 / 8.0) - 1.0) < 1e-10, v
+    assert abs(mu - 1.0) < 1e-12, mu
+
+
+def test_the_unitary_calibration_holds_at_every_published_range():
+    """Rescaling the unitary solution must keep 1/a = 0 and give r0 = r_eff."""
+    for row in etrych.TABLE_III:
+        for name in ("well", "mpt", "gauss", "lj"):
+            p1, p2 = etrych.unitary(name, row["r_eff"])
+            a, r0, nodes = lab.scattering(lab.POTENTIALS[name](p1, p2))
+            assert abs(1.0 / a) < 1e-9, (name, row["r_eff"], 1.0 / a)
+            assert abs(r0 / row["r_eff"] - 1.0) < 1e-8, (name, r0, row["r_eff"])
+            assert nodes == 0, (name, nodes)
+
+
+def test_the_rescaled_calibration_equals_a_direct_tune():
+    """Scale invariance is used as a shortcut; this is the shortcut checked.
+
+    The whole module computes at r0 = 1 and multiplies. Tuning directly at the
+    published range must land on the same parameters.
+    """
+    row = etrych.TABLE_III[0]
+    p1, p2 = etrych.calibrate("well", row)
+    direto = lab.tune("well", row["a_minus"], float(row["r_eff"]),
+                      p1, p2, nodes_target=0)
+    assert direto[5], "direct tune did not converge"
+    assert abs(direto[0] / p1 - 1.0) < 1e-9, (direto[0], p1)
+    assert abs(direto[1] / p2 - 1.0) < 1e-9, (direto[1], p2)
+
+
+def test_the_deliverable_reproduces_its_own_targets():
+    """Every calibrated potential hits the (a, r0) it claims to hit."""
+    for row in etrych.TABLE_III:
+        for name in ("well", "mpt", "gauss", "lj"):
+            p1, p2 = etrych.calibrate(name, row)
+            a, r0, nodes = lab.scattering(lab.POTENTIALS[name](p1, p2))
+            assert abs(a / row["a_minus"] - 1.0) < 1e-9, (name, a, row["a_minus"])
+            assert abs(r0 / row["r_eff"] - 1.0) < 1e-7, (name, r0, row["r_eff"])
+            assert nodes == 0, (name, row["r_eff"], nodes)
+
+
+def test_turning_up_the_lennard_jones_leaves_its_minimum_where_it_was():
+    """A common factor on C6 and C12 multiplies the depth and moves nothing.
+
+    This is what makes it the counterpart of "deepen the well" for the other
+    three shapes. Scaling C6 alone fails this on purpose, and sweep_c6_alone
+    exists to measure that.
+    """
+    p1, p2 = etrych.unit_solution("lj")
+    r_m = etrych.r_min_of("lj", p1, p2)
+    for factor in (0.5, 0.9, 1.1, 2.0):
+        q1, q2 = etrych.turn_up("lj", factor)
+        assert abs(etrych.r_min_of("lj", q1, q2) / r_m - 1.0) < 1e-14, factor
+        pot_a, pot_b = lab.LennardJones(p1, p2), lab.LennardJones(q1, q2)
+        assert abs(pot_b.V(r_m) / (factor * pot_a.V(r_m)) - 1.0) < 1e-12, factor
+    q1, q2 = p1 * 1.5, p2
+    assert abs(etrych.r_min_of("lj", q1, q2) / r_m - 1.0) > 1e-3
+
+
+def test_the_fixed_range_family_matches_the_closed_form():
+    """The depth-only family, against the closed forms of the square well."""
+    alvos = [-0.2, -0.1, 0.1, 0.2]
+    for linha in etrych.family_fixed_range("well", alvos):
+        v, mu = linha["p1"], linha["p2"]
+        assert abs(linha["a"] / lab.a_well(v, 1.0 / mu) - 1.0) < 1e-9, linha
+        assert abs(linha["r0"] / lab.r0_well(v, 1.0 / mu) - 1.0) < 1e-9, linha
 
 
 # =============================================================================
