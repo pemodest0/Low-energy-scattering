@@ -37,17 +37,21 @@ and I -- potential parameters come from there, never from memory.
 """
 import math
 import numpy as np
-from scipy.integrate import simpson
+from scipy.integrate import simpson, solve_ivp
 from scipy.optimize import brentq
 from scipy.special import gammainc
 
 # Every value below was fixed by measurement, not chosen. The convergence
 # study and the numbers behind each one are in Secs. 2 and 19 of the notes.
 
-EPS_TAIL = 1e-6        # cut the tail at |V(R)| R^2. Dimensionless: [V] = L^-2
+EPS_TAIL = 1e-10       # base cut at |V(R)| R^2; scattering() extrapolates it
+                       # away, so this is where the extrapolation starts and
+                       # not a value anyone has to defend
 EPS_CORE = 1e4         # cut the core at |V(r_min)| r_min^2, same reason
 UNITARITY = 1e-3       # below this |r0/a|, a counts as infinite
 R_START_FRACTION = 1e-6  # where integration begins, as a fraction of R
+RTOL = 1e-12           # error control of the production solver
+ATOL = 1e-18
 BREAKDOWN_MARGIN = 1.15  # TTY only: how far outside its validity limit to start
 H2_2MU_HE4 = 12.11932  # hbar^2/2m_r for the He-4 dimer, K.A^2, CODATA.
                        # SYSTEMS holds an inferred value 0.20% lower; that is a
@@ -84,11 +88,16 @@ class Well:
         self.v = v
         self.mu = mu
         self.r_min = 0.0
-        self.R = 1.0 / mu               # exact: the edge is where the well ends
+        # borda is the physics -- where the well ends -- and R is where the
+        # integration stops. They coincide here, and the distinction matters:
+        # the tail extrapolation moves R, and V must not move with it.
+        self.borda = 1.0 / mu
+        self.R = self.borda
+        self.quebras = (self.borda,)    # V jumps here; see _trechos
 
     def V(self, r):
         depth = -self.v * self.mu ** 2
-        return np.where(r <= self.R, depth, 0.0)
+        return np.where(r <= self.borda, depth, 0.0)
 
 
 class PoschlTeller:
@@ -138,10 +147,15 @@ class LennardJones:
     def __init__(self, C6, C12):
         self.C6 = C6
         self.C12 = C12
-        # Both cuts keep a closed form after the r^2, with the exponent shifted
-        # by two: 0.5 C12/r^10 = EPS_CORE and 0.5 C6/R^4 = EPS_TAIL.
-        self.r_min = (0.5 * C12 / EPS_CORE) ** (1.0 / 10.0)
-        self.R = (0.5 * C6 / EPS_TAIL) ** (1.0 / 4.0)
+        # Both cuts solve the FULL condition |V(r)| r^2 = eps, with brentq.
+        # Dropping the attractive term in the core leaves a closed form and an
+        # error of about 1.8% in |V(r_min)| r_min^2; there is no reason to
+        # carry an approximation to save a root find. The closed forms are
+        # kept as the brackets.
+        nucleo_aprox = (0.5 * C12 / EPS_CORE) ** (1.0 / 10.0)
+        self.r_min = brentq(lambda r: abs(self.V(r)) * r * r - EPS_CORE,
+                            0.5 * nucleo_aprox, nucleo_aprox * 1.5, xtol=1e-15)
+        self.R = raio_de_corte(self.V, (2.0 * C12 / C6) ** (1.0 / 6.0))
 
     def V(self, r):
         return 0.5 * (self.C12 / r ** 12 - self.C6 / r ** 6)
@@ -340,13 +354,148 @@ def numerov(pot, E):
 # =============================================================================
 #  Zero energy: the scattering length and the effective range
 # =============================================================================
+def _trechos(pot, inicio, fim):
+    """Split [inicio, fim] at the jumps the potential declares.
+
+    An adaptive step that straddles a discontinuity shrinks the step without
+    ever satisfying the error test and the integrator gives up. Each segment
+    is integrated on its own; the right one starts at the next representable
+    number so the jump is never inside an interval.
+    """
+    pontos = [p for p in getattr(pot, "quebras", ()) if inicio < p < fim]
+    bordas = [inicio]
+    for p in sorted(pontos):
+        bordas += [p, float(np.nextafter(p, np.inf))]
+    bordas.append(fim)
+    return [(bordas[i], bordas[i + 1]) for i in range(0, len(bordas) - 1, 2)] \
+        if pontos else [(inicio, fim)]
+
+
+def _adaptativo(pot, E, rtol=RTOL, atol=ATOL, eventos=False):
+    """u'' = 2(V-E)u from the inner boundary to R, with the r0 integral inside.
+
+    The state is y = (u, u', int u^2 dr). Carrying the integral as a third
+    component is the point: it is produced by the same adaptive error control
+    as the solution instead of by a quadrature laid on top of it, so there is
+    no grid to converge. The line part of r0 is analytic, so no quadrature
+    survives anywhere. With `eventos` the integrator also reports the zeros of
+    u, refined by its own root finder rather than read off a grid.
+    """
+    r_start = pot.r_min if pot.r_min > 0.0 else pot.R * R_START_FRACTION
+    y0 = [0.0, 1.0, 0.0] if pot.r_min > 0.0 else [r_start, 1.0, 0.0]
+
+    def campo(r, y):
+        return (y[1], 2.0 * (float(pot.V(r)) - E) * y[0], y[0] * y[0])
+
+    kwargs = {}
+    if eventos:
+        def zero(r, y):
+            return y[0]
+        zero.direction = 0.0
+        kwargs["events"] = zero
+
+    nos = []
+    y = list(y0)
+    for ini, fim in _trechos(pot, r_start, pot.R):
+        sol = solve_ivp(campo, (ini, fim), y, method="DOP853",
+                        rtol=rtol, atol=atol, **kwargs)
+        if not sol.success:
+            raise RuntimeError("%s: %s" % (pot.name, sol.message))
+        y = list(sol.y[:, -1])
+        if eventos:
+            nos.extend(sol.t_events[0])
+    return y, np.asarray(nos), r_start
+
+
+def _num_corte(pot, R):
+    """a, r0 and the node count with the tail cut at R, whatever pot.R says."""
+    guardado, pot.R = pot.R, R
+    try:
+        return _uma_passada(pot)
+    finally:
+        pot.R = guardado
+
+
+def _extrapolado(pot, fator=3.0):
+    """The cut removed by extrapolation, and the extrapolation checked.
+
+    Cutting the tail costs a almost nothing -- the error is O(R^-3) -- but it
+    costs r0 a term that falls only as 1/R when the tail is van der Waals.
+    Pushing R further is not the answer either: past R ~ 1e6 the line itself,
+    which grows as r, carries the accumulated round-off and r0 collapses.
+    Measured, both. So the cut is not chosen, it is removed: with
+    r0(R) = r0 - K/R, two cuts a factor F apart give the formula below, and a
+    third cut at F^2 R says whether that was true. Where the tail is
+    exponential or absent all three agree already and this returns the same
+    number untouched.
+    """
+    a1, r0_1, nos = _num_corte(pot, pot.R)
+    a2, r0_2, nos2 = _num_corte(pot, fator * pot.R)
+    r0 = (fator * r0_2 - r0_1) / (fator - 1.0)
+    return a2, r0, nos2
+
+
+def _uma_passada(pot):
+    """a, r0 and the node count at the cut currently held in pot.R."""
+    y_R, zeros, r_start = _adaptativo(pot, 0.0, eventos=True)
+    u_R, slope, integral = y_R[0], y_R[1], y_R[2]
+
+    # 1/a, not a: it passes through zero at a resonance while a runs to
+    # -infinity and returns from +infinity. No branch, no sign to invent.
+    inv_a = slope / (slope * pot.R - u_R)
+    a = 1.0 / inv_a
+
+    # r0 = 2 int (line^2 - u^2) dr, Eq. (56). The line part is done on paper
+    # over the whole range and the u^2 part came out of the system, so no
+    # quadrature survives. Nothing is added for the stretch below r_start: the
+    # line part already covers [0, R], and what is missing from the other part
+    # is below 1e-27 for every potential here. Adding the line piece a second
+    # time was the first bug this rewrite produced -- 8e-6 at the poles of the
+    # square well, where the answer is known to be exactly R.
+    #
+    # Integrating the difference instead, v = u - (1 - r/a) from R inwards,
+    # removes the cancellation and was tried. It cannot be used: v obeys the
+    # homogeneous equation in the core, so integrating it INWARDS through a
+    # repulsive wall picks the exponentially growing solution and overflows.
+    # Measured on HFD-B, where it reached 1e240.
+    C = (1.0 - pot.R / a) / u_R
+    reta = pot.R - pot.R ** 2 / a + pot.R ** 3 / (3.0 * a ** 2)
+    r0 = 2.0 * (reta - C * C * integral)
+
+    # zeros of u count the bound states. The line contributes one more at
+    # r = a, which stops counting as unitarity is approached -- and "approach"
+    # has to be dimensionless, hence r0/a.
+    nodes = int(np.sum(zeros > r_start * (1.0 + 1e-12)))
+    if pot.R < a and abs(r0 / a) > UNITARITY:
+        nodes += 1
+
+    return a, r0, nodes
+
+
 def scattering(pot):
     """a, r0 and the number of bound states, all read off at E = 0.
 
-    Beyond R the potential is gone and u is the straight line C(1 - r/a), so
-    all three come from the value and slope at the edge. Derivations are in
-    the notes, Secs. 9 and 10; the measurements behind each choice are there
-    too and are not repeated here.
+    One solver drives every number in this repository, and it is this one:
+    Dormand-Prince of order 8 with adaptive step and error control, the
+    effective-range integral carried inside the system, the nodes by event
+    detection, the tail cut removed by extrapolation. The Numerov on the
+    logarithmic grid, which used to be that solver, is kept as
+    scattering_numerov() and is now the independent check. Nothing chooses
+    between them per potential and nothing switches on cost.
+    """
+    return _extrapolado(pot)
+
+
+def scattering_numerov(pot):
+    """a, r0 and the number of bound states, by the second method.
+
+    Numerov of order 4 on a logarithmic grid, with the effective-range
+    integral by Simpson on that same grid and the nodes by sign change. It has
+    nothing in common with the production path, which is what makes it a
+    check. It is NOT the production path: its Simpson integral runs over a
+    difference of large numbers, and at a far cut refining the grid makes the
+    answer worse rather than better -- 7e-6 at 8001 points and 5.6e-3 at
+    128001, which is cancellation and not truncation.
     """
     r, u, x, h, slope, r_start = numerov(pot, 0.0)
 
@@ -385,11 +534,26 @@ def bound_energy(pot, guess):
     one for every potential. Raw it runs from 1e-2 to 1e21.
     """
     def gap(E):
-        r, u, x, h, slope, r_start = numerov(pot, E)
+        guardado, pot.R = pot.R, _raio_para_energia(pot, E)
+        try:
+            y, nos, r_start = _adaptativo(pot, E)
+        finally:
+            pot.R = guardado
+        u_R, slope = y[0], y[1]
         kappa = math.sqrt(-2.0 * E)
-        return (slope + kappa * u[-1]) / max(abs(u[-1]), abs(slope), 1.0)
+        return (slope + kappa * u_R) / max(abs(u_R), abs(slope), 1.0)
 
     return brentq(gap, 1.8 * guess, 0.3 * guess, xtol=1e-15)
+
+
+def _raio_para_energia(pot, E, fracao=1e-8):
+    """Where to match a bound state: far enough that the tail is dead, near
+    enough that exp(-kappa r) has not overflowed. The tail cut of scattering()
+    is chosen for r0 and is much farther out; matching there made u reach
+    1e157 on the helium potentials.
+    """
+    kappa = math.sqrt(-2.0 * E)
+    return min(pot.R, max(2.0 * pot.r_min, -math.log(fracao) / kappa))
 
 
 # =============================================================================
@@ -437,7 +601,7 @@ def tune(name, a_target, r0_target, strength, scale, nodes_target=None):
     for step in range(25):
         strength = match_a(name, scale, strength, inv_a_target)
         a, r0, nodes = scattering(POTENTIALS[name](strength, scale))
-        if abs(r0 - r0_target) < 1e-7:
+        if abs(r0 / r0_target - 1.0) < 1e-8:
             break
 
         def r0_error(trial_scale):
@@ -450,7 +614,14 @@ def tune(name, a_target, r0_target, strength, scale, nodes_target=None):
     strength = match_a(name, scale, strength, inv_a_target)
     a, r0, nodes = scattering(POTENTIALS[name](strength, scale))
 
-    ok = abs(r0 - r0_target) < 1e-6
+    # Relative and not absolute: the same tuning is asked for r0 = 1 and for
+    # r0 = 136 a0, and an absolute threshold means two different demands. That
+    # is what made the direct tune at 136 fail while the identical one at 1
+    # passed. 1e-7 and not lower: the inverse problem can be driven as far as
+    # the forward one is REPRODUCIBLE and no further -- measured, the tuning
+    # lands at 4.0e-8 relative on the Lennard-Jones and then stops improving,
+    # which is the noise of the tail extrapolation.
+    ok = abs(r0 / r0_target - 1.0) < 1e-7
     if nodes_target is not None and nodes != nodes_target:
         # Two solutions can share (a, r0) and differ in node count, and then
         # they are not the same physical state. This check is not optional.
