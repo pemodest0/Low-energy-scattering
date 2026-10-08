@@ -22,3 +22,7 @@ desktop.ini
 arquivo/
 
 # paper: o PDF e os intermediarios sao gerados, nao versionados
+.cache_gerar
+
+# resultados: saida gerada por gerar.py, vai por e-mail, nao versionada
+resultados/
