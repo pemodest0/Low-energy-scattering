@@ -120,6 +120,48 @@ def familias():
     return fora
 
 
+def poco():
+    """The solver against the closed forms of the square well.
+
+    Twenty-one depths spread between the first two poles of a, avoiding the
+    poles themselves where a diverges. The worst relative deviation of each
+    observable is what the notes and the write-up quote.
+    """
+    pior_a = pior_r0 = 0.0
+    for k in range(1, 22):
+        v = 0.2 + k * (10.5 - 0.2) / 22.0
+        a, r0, nodes = lab.scattering(lab.Well(v, 1.0))
+        pior_a = max(pior_a, abs(a / lab.a_well(v, 1.0) - 1.0))
+        pior_r0 = max(pior_r0, abs(r0 / lab.r0_well(v, 1.0) - 1.0))
+    return {"a": pior_a, "r0": pior_r0}
+
+
+def ramos():
+    """The same (a, r0) on branches carrying 0, 1 and 2 deeply bound dimers.
+
+    Square well only: the search scans the strength, which is cheap here and
+    expensive for the Lennard-Jones, and the point being made is qualitative
+    -- that the branch is a real choice with a measurable consequence -- not
+    shape dependent.
+    """
+    row = etrych.TABLE_III[0]
+    fora = []
+    for deep in (0, 1, 2):
+        p1, p2 = etrych.calibrate_on_branch("well", row, deep)
+        a, r0, nodes = lab.scattering(lab.Well(p1, p2))
+        R = 1.0 / p2
+        fora.append({"profundos": deep, "v": p1, "R": R,
+                     "R_sobre_rvdw": R / etrych.R_VDW,
+                     "a": a, "r0": r0, "estados": nodes})
+    return fora
+
+
+def tabela_ramos(rm):
+    return ["%d & %.5f & %.1f & %.2f & $%.3f$ & %.3f \\\\"
+            % (l["profundos"], l["v"], l["R"], l["R_sobre_rvdw"], l["a"], l["r0"])
+            for l in rm]
+
+
 def cauda():
     """r0 of one fixed Lennard-Jones as the tail cut is pushed outwards.
 
@@ -366,7 +408,19 @@ def main():
     SAIDA_TEX.append(("TabEtrychUnitarioCorpo", tabela_unitaria(tabela)))
     SAIDA_TEX.append(("TabEtrychAminusCorpo", tabela_aminus(tabela)))
     SAIDA_TEX.append(("TabEtrychFamiliasCorpo", linhas_fam))
-    SAIDA_TEX.append((None, macros(tabela, deriva, forca, lq)))
+    pc = memo("poco", poco)
+    rm = memo("ramos", ramos)
+    SAIDA_TEX.append(("TabEtrychRamosCorpo", tabela_ramos(rm)))
+    etas = [row["eta_minus"] for row in etrych.TABLE_III]
+    extra = [r"\newcommand{\EtrychEtaMenor}{%.2f}" % min(etas),
+             r"\newcommand{\EtrychEtaMaior}{%.2f}" % max(etas),
+             r"\newcommand{\EtrychRamoAlcanceBaixo}{%.2f}"
+             % min(l["R_sobre_rvdw"] for l in rm),
+             r"\newcommand{\EtrychRamoAlcanceAlto}{%.2f}"
+             % max(l["R_sobre_rvdw"] for l in rm),
+             r"\newcommand{\EtrychPocoA}{%s}" % notacao(pc["a"]),
+             r"\newcommand{\EtrychPocoRzero}{%s}" % notacao(pc["r0"])]
+    SAIDA_TEX.append((None, macros(tabela, deriva, forca, lq) + extra))
     escreve_tex()
 
     print("\ndata")

@@ -25,6 +25,14 @@
         \small São Carlos Institute of Physics --- University of São Paulo}
 \date{\today}
 
+\newcommand{\FormaWell}{square well}
+\newcommand{\FormaMpt}{P\"oschl-Teller}
+\newcommand{\FormaGauss}{Gaussian}
+\newcommand{\FormaLj}{Lennard-Jones}
+\newcommand{\FormaCseis}{by $C_6$ alone}
+
+\input{tabelas/gerado}
+
 \begin{document}
 \maketitle
 
@@ -2045,6 +2053,193 @@ and $1.70$. Refining the grid does not move these deviations. The third row
 above $0.2\%$, (deut., Lennard-Jones) at $1.13\%$, is not of that kind: there
 the published parameters do reach the target, and the gap is the flat direction
 in $(C_{12}, C_6)$ discussed above.
+
+\section{Calibrating on a measured resonance}
+
+Everything above is about one potential at a time. This section is about using
+the laboratory on measured data: Table III of Etrych \textit{et al.},
+Phys.\ Rev.\ Research \textbf{5}, 013174 (2023), which gives, for five
+$^{39}$K Feshbach resonances, an effective range near $B_{\rm res}$ and the
+Efimov feature $a_-$ at which the lowest trimer meets the three-atom
+continuum.
+
+\begin{center}\small
+\begin{tabular}{lrrrr@{\,}c@{\,}lr@{\,}c@{\,}lr}
+\toprule
+state & $B_{\rm res}$ (G) & $s_{\rm res}$ & $r_{\rm eff}$ &
+\multicolumn{3}{c}{$a_-$} & \multicolumn{3}{c}{$a_p$} & $r_{\rm eff}/a_-$ \\
+\midrule
+\TabEtrychIIICorpo
+\bottomrule
+\end{tabular}
+\end{center}
+
+Three things the source says that the numbers alone do not. The $r_{\rm eff}$
+is not measured: it comes from the authors' own coupled-channel calculations.
+The $33.5820$~G row is reproduced there from other references, not measured in
+that work. And $a_p$ is their symbol and is \emph{not} their $a_+$: on the
+positive side the log-periodic modulation of the three-body loss has minima at
+$a_+e^{j\pi/s_0}$ and maxima at $a_pe^{j\pi/s_0}$, with
+$a_p=a_+e^{\pi/(2s_0)}$, half an Efimov period apart. Table III tabulates
+$a_p$, and the universal ratio the paper tests is $a_p/a_-=-1$, which is why
+the two columns come out with nearly the same magnitude.
+
+\textbf{$a_-$ is not predicted here.} It is a three-body observable and enters
+as data. What is built is the two-body interaction \emph{at} that point, which
+is the input a later three-body calculation needs.
+
+\subsection{Two equations, two unknowns, and the rest is scale}
+
+Each shape has two free parameters and each row gives two numbers, so the
+calibration is a system of two equations in two unknowns. It is solved at
+$r_0=1$ and rescaled, which is not an optimisation but the scale invariance of the
+nondimensionalisation used deliberately: the shape decides the dimensionless
+$r_0/a$ and nothing else, so five rows of the table are five multiplications
+of one solution. Tuned directly at $r_{\rm eff}=136\,a_0$ the Lennard-Jones
+takes $144$~s and fails outright for three of the five rows, because the
+starting guess carries $L^{10}$; tuned at $r_0=1$ and rescaled it takes
+$1.4$~s.
+
+\begin{center}\small
+\begin{tabular}{lrrrr}
+\toprule
+shape & first parameter & second parameter & $1/a$ & $r_0$ \\
+\midrule
+\TabEtrychUnitarioCorpo
+\bottomrule
+\end{tabular}
+\end{center}
+
+Those four rows are the whole of the shape information. Everything in the
+deliverable follows from them by multiplication.
+
+\subsection{Walking through the resonance}
+
+The second half is a \emph{family}: a path in $1/a$ that starts at $a_-$,
+crosses the resonance and continues to the positive side, where $a_p$ is.
+Plotted in $1/a$ and not in $a$, because $a$ runs to infinity at the crossing
+and returns with the opposite sign, which is a property of the coordinate and
+not of the physics.
+
+There are two ways to walk it and they are not the same family. Retuning both
+parameters at every point holds $r_0$ fixed by construction, at the price of
+the potential being a different object at each point. Freezing the range at
+the unitary solution and varying only the depth is closer to how a physical
+interaction moves, and there $r_0$ is an output.
+
+\begin{center}\small
+\begin{tabular}{lrrrrrr}
+\toprule
+shape & \multicolumn{3}{c}{depth alone} & \multicolumn{2}{c}{both retuned} & depth \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}
+ & smallest $r_0$ & largest $r_0$ & spread & smallest $r_0$ & largest $r_0$ & needed \\
+\midrule
+\TabEtrychFamiliasCorpo
+\bottomrule
+\end{tabular}
+\end{center}
+
+The difference is not a detail. Over the same walk the effective range moves by
+$\EtrychDerivaWell$ for the square well, $\EtrychDerivaGauss$ for the Gaussian,
+$\EtrychDerivaMpt$ for the P\"oschl-Teller and $\EtrychDerivaLj$ for the
+Lennard-Jones, while the retuned family holds it to eight figures. Anything
+computed along the second family and quoted in units of $r_{\rm eff}$ is being
+quoted in a unit that changes underneath it.
+
+Those four numbers are how far one shape drifts along the walk, and they are
+not the shape dependence, which is a different quantity: the disagreement
+\emph{between} the four shapes at the \emph{same} point. That one is zero at
+unitarity by construction --- all four are calibrated there --- grows close to
+linearly away from it, and reaches only $\EtrychLequeRaso$ at
+$r_{\rm eff}/a=-0.06$ and $\EtrychLequeAmenos$ at $-0.16$, which brackets
+where the measured $a_-$ sit. At the ends of the sweep it is
+$\EtrychLequeBorda$. The two are easy to confuse and were confused once, in a
+draft that quoted the drift as though it were the shape dependence, which
+overstated it by an order of magnitude; both are computed so neither has to be
+recalled.
+
+\subsection{What ``the depth'' is for the Lennard-Jones}
+
+For the one-scale shapes, turning up the strength is multiplying one
+parameter. For the Lennard-Jones, $V=\tfrac12(C_{12}/r^{12}-C_6/r^6)$ has its
+minimum at $r_m^6=2C_{12}/C_6$ with depth $C_6^2/8C_{12}$: multiplying
+\emph{both} coefficients by a common factor leaves $r_m$ exactly where it was
+and multiplies the depth, which is the operation the other three perform.
+Moving $C_6$ alone deepens the well \emph{and} slides its minimum.
+
+Both are computed. Over the same walk, the common factor needs
+$\EtrychForcaLj$ of variation and $C_6$ alone needs only $\EtrychForcaCseis$,
+at the price of the minimum sliding by $\EtrychMinimoCseis$ instead of staying
+put.
+
+\subsection{The branch: how many deeply bound dimers}
+\label{sec:ramos}
+
+$(a,r_0)$ does not determine the potential. Deepening a shape past each pole of
+$a$ adds one bound state and reaches the same $(a,r_0)$ again, so the
+calibration has one solution per branch.
+
+\begin{center}\small
+\begin{tabular}{crrrrr}
+\toprule
+deep dimers & $v$ & $R$ ($a_0$) & $R/r_{\rm vdW}$ & $a$ ($a_0$) & $r_0$ ($a_0$) \\
+\midrule
+\TabEtrychRamosCorpo
+\bottomrule
+\end{tabular}
+\end{center}
+
+All three are indistinguishable in two-body low-energy scattering --- that is
+what universality means --- and they are not equivalent in three. A deep dimer
+gives an Efimov trimer somewhere to decay to, and the rate of that is what the
+Efimov width parameter $\eta$ measures. On the shallowest branch there are no
+deep dimers, no such channel, and $\eta$ would be exactly zero. Table III
+publishes $\eta_-$ for every row, between $\EtrychEtaMenor$ and
+$\EtrychEtaMaior$, all plainly nonzero --- as expected of $^{39}$K, which
+carries dozens of deeply bound molecular states. \textbf{The measurement
+already rules the shallow branch out as a description of the real system.}
+
+That turns the branch from a convention into a test: a three-body calculation
+on each branch can be compared against the published $\eta_-$, with the
+shallow branch as the control --- what zero-range universality alone would say
+--- and a branch with deep states as the realistic candidate. The shallow
+branch is what this chapter's tables use, and it is a control, not a claim.
+
+Two things the implementation exposed. The branch does not determine the
+potential either: the search finds more than one solution inside one branch,
+same $(a,r_0)$ and same node count, differing in range --- at one deep dimer
+the square well admits $136\,a_0$ and $1428\,a_0$. The compact one is kept, on
+physical grounds and not numerical ones, since $1428\,a_0$ is twenty-two van
+der Waals lengths and nothing about $^{39}$K is that long-ranged; what is kept
+lands between $\EtrychRamoAlcanceBaixo$ and $\EtrychRamoAlcanceAlto$ times
+$r_{\rm vdW}$. And $r_0>0$ is a requirement rather than a consequence: the
+ratio $r_0/a$ reaches its target with both signs flipped, and rescaling by
+$1/r_0$ would then ask for a negative scale, which no positive rescaling can
+repair.
+
+\subsection{What anchors this section, and what is left open}
+
+Anchored: the calibration hits its targets to $\EtrychAlvoA$ in $a$ and
+$\EtrychAlvoRzero$ in $r_0$ over all twenty rows; the unitary solutions hold
+$1/a$ at $\EtrychUnitInv$ and $r_0$ within $\EtrychUnitRzero$ of $1$ at every
+published range; the rescaled calibration lands where a direct tune lands; and
+the depth-only family matches the closed forms of the square well point by
+point.
+
+Left open, and none of it is code. Which branch the three-body calculation
+should use, which the $\eta_-$ comparison above can decide. The factor by
+which the shape dependence propagates from $r_0$ to the predicted $a_-$, which
+is not unity and is not measured here. And the three-body calculation itself,
+which is a project of its own; this chapter builds its input.
+
+One limitation deserves its own line. None of the five resonances is broad:
+the authors classify four of them as intermediate-strength, and they note that
+for the four stronger ones $r_{\rm eff}$ comes out about $25\%$ below the
+$\approx2.8\,r_{\rm vdW}$ expected for broad resonances. The van der Waals
+universality that predicts $a_-\simeq-9.7\,r_{\rm vdW}$ is derived in the
+broad limit, and $^{39}$K does not sit in it. The effective range entering
+this calibration is already not a broad-resonance effective range, which is
+what makes the finite-range correction carried here worth carrying.
 
 
 \end{document}

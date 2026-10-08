@@ -54,6 +54,10 @@ import lab
 #  a_p e^{j pi/s0}, with a_p = a_+ e^{pi/(2 s0)}, half an Efimov period above.
 #  Table III tabulates a_p, and the universal ratio the paper tests is
 #  a_p/a_- = -1, which is why the two columns have nearly equal magnitude.
+#  eta_minus is the Efimov width parameter of the same table: it encodes the
+#  lifetime of the trimers, and it is nonzero only when there are deeply
+#  bound dimers for them to decay into. See "the branch" below.
+#
 #  It is carried because it is the natural far end of the path in "families"
 #  below; the row at 162.36 G has none published.
 # =============================================================================
@@ -61,14 +65,19 @@ R_VDW = 64.6            # a0, the van der Waals length of 39K, from [6]
 
 TABLE_III = (
     {"state": "|1,1>",   "B_res": 402.74, "B_txt": "402.74", "s_res": 2.8, "r_eff": 136,
+     "eta_minus": 0.27, "eta_minus_err": 0.06,
      "a_minus": -830, "a_minus_err": 40, "a_p": 900,  "a_p_err": 60},
     {"state": "|1,0>",   "B_res": 472.33, "B_txt": "472.33", "s_res": 2.8, "r_eff": 137,
+     "eta_minus": 0.26, "eta_minus_err": 0.05,
      "a_minus": -840, "a_minus_err": 30, "a_p": 760,  "a_p_err": 70},
     {"state": "|1,-1>",  "B_res": 33.5820, "B_txt": "33.5820", "s_res": 2.6, "r_eff": 135,
+     "eta_minus": 0.25, "eta_minus_err": 0.01,
      "a_minus": -908, "a_minus_err": 11, "a_p": 876,  "a_p_err": 28},
     {"state": "|1,-1>",  "B_res": 162.36, "B_txt": "162.36", "s_res": 1.1, "r_eff": 59,
+     "eta_minus": 0.5, "eta_minus_err": 0.1,
      "a_minus": -780, "a_minus_err": 70, "a_p": None, "a_p_err": None},
     {"state": "|1,-1>",  "B_res": 561.14, "B_txt": "561.14", "s_res": 2.5, "r_eff": 132,
+     "eta_minus": 0.33, "eta_minus_err": 0.06,
      "a_minus": -810, "a_minus_err": 30, "a_p": 800,  "a_p_err": 100},
 )
 

@@ -1,0 +1,572 @@
+% Relatorio da tarefa da Tabela III. NAO faz parte do build do repositorio:
+% sai por e-mail. Todo numero vem de tabelas/gerado.tex, escrito por gerar.py.
+% Os trechos de codigo sao recortes de lab.py e etrych.py: as linhas de codigo
+% sao verbatim, trechos omitidos levam reticencias, e os comentarios foram
+% traduzidos e encurtados para caber na pagina.
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage[font=small,labelfont=bf,skip=4pt]{caption}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{fundocodigo}{gray}{0.97}
+\definecolor{comentario}{rgb}{0.30,0.45,0.30}
+\definecolor{palavra}{rgb}{0.10,0.25,0.55}
+\definecolor{texto}{rgb}{0.55,0.25,0.15}
+\definecolor{regua}{gray}{0.75}
+
+\lstdefinestyle{python}{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{palavra}\bfseries,
+  commentstyle=\color{comentario}\itshape,
+  stringstyle=\color{texto},
+  backgroundcolor=\color{fundocodigo},
+  frame=leftline, framesep=7pt, rulecolor=\color{regua},
+  showstringspaces=false, breaklines=true, breakatwhitespace=true,
+  columns=fullflexible, keepspaces=true, aboveskip=0.9em, belowskip=0.7em,
+  literate={á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ê}{{\^e}}1 {í}{{\'i}}1
+           {ó}{{\'o}}1 {õ}{{\~o}}1 {ú}{{\'u}}1 {ç}{{\c c}}1,
+}
+\lstset{style=python}
+
+\newcommand{\cod}[1]{\texttt{\small #1}}
+
+\renewcommand{\abstractname}{Resumo}
+\renewcommand{\tablename}{Tabela}
+\renewcommand{\figurename}{Figura}
+\renewcommand{\refname}{Referências}
+\renewcommand{\lstlistingname}{Código}
+\newcommand{\hoje}{\number\day\ de \ifcase\month\or janeiro\or fevereiro\or
+  março\or abril\or maio\or junho\or julho\or agosto\or setembro\or outubro\or
+  novembro\or dezembro\fi\ de \number\year}
+
+\newcommand{\FormaWell}{poço quadrado}
+\newcommand{\FormaMpt}{P\"oschl-Teller}
+\newcommand{\FormaGauss}{gaussiana}
+\newcommand{\FormaLj}{Lennard-Jones}
+\newcommand{\FormaCseis}{por $C_6$ sozinho}
+
+\input{tabelas/gerado}
+
+\title{\vspace{-1.3cm}\textbf{Calibração de potenciais de dois corpos\\
+sobre a Tabela III de Etrych \textit{et al.}}}
+\author{Pedro Henrique Gesualdo Modesto\\[2pt]
+\small Instituto de Física de São Carlos --- Universidade de São Paulo\\
+\small Orientador: Lucas Madeira \quad Coorientadora: Patrícia C. M. Castilho}
+\date{\small\hoje}
+
+\begin{document}
+\maketitle
+\vspace{-0.5cm}
+\begin{abstract}
+\noindent
+Para cada uma das cinco ressonâncias de Feshbach da Tabela III de
+Etrych \textit{et al.} [1] são determinados os parâmetros de quatro formas de
+potencial de dois corpos que reproduzem simultaneamente o alcance efetivo
+$r_{\rm eff}$ e o comprimento de espalhamento $a_-$ da feição de Efimov: duas
+equações a duas incógnitas por forma. Em seguida é construída a família que
+leva de $a_-$ através da ressonância até o lado positivo, em duas prescrições.
+A discordância entre as quatro formas no mesmo ponto --- \EtrychLequeAmenos{}
+em $r_0$ na faixa onde os $a_-$ se encontram --- mede a dependência de forma
+que um cálculo de três corpos herdaria da escolha do potencial, e é pequena
+comparada com o fator $1{,}3$ a $1{,}4$ que separa o $a_-$ medido da previsão
+de van der Waals. Registra-se que $a_-$ é observável de três corpos e entra
+como dado: constrói-se a \emph{entrada} de um cálculo de três corpos, não uma
+previsão de $a_-$. Um resultado colateral organiza o passo seguinte: $(a,r_0)$
+não determina o potencial, e os ramos que carregam dímeros profundos são
+distinguíveis pelo parâmetro de largura $\eta_-$ que a mesma tabela publica.
+\end{abstract}
+
+\section{Objetivo}
+
+Em energia baixa a colisão de dois átomos depende do potencial apenas por dois
+comprimentos, $a$ e $r_0$. Em três corpos, o mesmo limite gera a torre de
+Efimov, com invariância de escala discreta de razão $e^{\pi/s_0}\approx22{,}7$
+($s_0=1{,}00624$): a simetria fixa as razões entre feições observáveis, mas não
+suas posições absolutas, que dependem de uma condição de curta distância. A
+universalidade de van der Waals prevê
+$a_-\simeq-9{,}7\,r_{\rm vdW}\approx-630\,a_0$ para o potássio-39;
+Etrych \textit{et al.} mediram $-13(1)\,r_{\rm vdW}$ nas quatro ressonâncias
+que caracterizaram, e a Tabela III reúne essas quatro com uma quinta vinda de
+outras referências.
+
+Este trabalho faz o passo de dois corpos que antecede qualquer explicação dessa
+discrepância: construir potenciais que sentam sobre os números medidos, para
+que um cálculo de três corpos os receba com o alcance finito já embutido, em
+vez de tratá-lo como correção perturbativa sobre alcance zero. São dois itens:
+(i) calibrar, para cada linha e cada forma, os parâmetros que dão $a=a_-$ com
+$r_0=r_{\rm eff}$, e os que dão unitariedade com $r_0=r_{\rm eff}$;
+(ii) construir o caminho contínuo de $a_-$ até o lado positivo e medir o que
+acontece com $r_0$ ao longo dele.
+
+\section{Método}
+
+Em onda $s$, com $\psi=u(r)/r$, a equação radial é
+$-\frac{\hbar^2}{2\mu}u''+Vu=Eu$ com $u(0)=0$. O código divide energias e
+potenciais por $\hbar^2/\mu$, de modo que $[V]=[E]=L^{-2}$ e a equação
+integrada é $u''=2(V-E)u$; em energia zero, $u''=2Vu$. Fora do alcance do
+potencial $V=0$ e $u$ é uma reta, de onde saem os dois observáveis:
+\begin{equation}
+  u(r)=C\left(1-\frac ra\right)
+  \ \Longrightarrow\
+  \frac1a=\frac{u'(R)}{u'(R)R-u(R)},
+  \qquad
+  r_0=2\int_0^\infty\!\left[\left(1-\frac ra\right)^{2}-u_0^{2}\right]dr .
+  \label{eq:ar0}
+\end{equation}
+A convenção de sinal é a da Eq.~(A3) de [1], de modo que o $r_{\rm eff}$
+tabulado \emph{é} o $r_0$ calculado aqui, sem conversão. Guarde a segunda
+integral: o integrando é a diferença entre duas quantidades que se igualam
+longe do potencial, e é ela que dita a arquitetura da Seção~\ref{sec:impl}.
+
+Nessas unidades a equação não tem escala própria: sob $r\to\lambda r$ valem
+$a\to\lambda a$ e $r_0\to\lambda r_0$, logo \textbf{a forma do potencial decide
+apenas o adimensional $r_0/a$}. Cada linha da Tabela~\ref{tab:iii} é então uma
+multiplicação de uma solução calculada uma única vez por forma, e as famílias
+do item (ii) são universais: uma família em $r_0=1$ serve para as cinco linhas.
+
+\section{Implementação}
+\label{sec:impl}
+
+O código está em \cod{lab.py} (dado $V(r)$, quanto valem $a$, $r_0$ e o número
+de estados), \cod{etrych.py} (dados $r_{\rm eff}$ e $a_-$, quais parâmetros os
+produzem), \cod{gerar.py} (as tabelas, as figuras e os dados deste relatório) e
+\cod{test\_lab.py} (trinta conferências). Nas listagens abaixo as linhas de
+código são verbatim; trechos omitidos levam reticências e os comentários foram
+traduzidos.
+
+\paragraph{O integrador.} Um só produz todos os números: Dormand--Prince de
+oitava ordem, passo adaptativo, tolerância relativa $10^{-12}$. A decisão que
+importa está na terceira componente do estado.
+
+\begin{lstlisting}[caption={\cod{lab.py} --- o estado é $y=(u,u',\int u^2dr)$.
+Carregar a integral da Eq.~\eqref{eq:ar0} \emph{dentro} do sistema faz com que
+ela seja produzida pelo mesmo controle de erro que produz a função de onda, em
+vez de por quadratura aplicada por cima: não resta malha para convergir. Os nós
+saem por detecção de evento, e a integração é feita por trechos porque um passo
+adaptativo que atravessa a descontinuidade do poço quadrado colapsa.}]
+def _adaptativo(pot, E, rtol=RTOL, atol=ATOL, eventos=False):
+    r_start = pot.r_min if pot.r_min > 0.0 else pot.R * R_START_FRACTION
+    y0 = [0.0, 1.0, 0.0] if pot.r_min > 0.0 else [r_start, 1.0, 0.0]
+
+    def campo(r, y):
+        return (y[1], 2.0 * (float(pot.V(r)) - E) * y[0], y[0] * y[0])
+    ...                                  # evento: zero de u, raiz refinada
+    y = list(y0)
+    for ini, fim in _trechos(pot, r_start, pot.R):
+        sol = solve_ivp(campo, (ini, fim), y, method="DOP853",
+                        rtol=rtol, atol=atol, **kwargs)
+        y = list(sol.y[:, -1])
+        ...
+    return y, np.asarray(nos), r_start
+\end{lstlisting}
+
+\paragraph{A extração.} No raio de corte, valor e derivada dão os três
+observáveis. A parte da reta da Eq.~\eqref{eq:ar0} é integrada analiticamente
+sobre todo o intervalo e a parte de $u^2$ veio de dentro do sistema: nenhuma
+quadratura sobrevive.
+
+\begin{lstlisting}[caption={\cod{lab.py} --- perseguir $1/a$ e não $a$ percorre
+todo o código: $a$ tem polos na ressonância, $1/a$ passa por zero.}]
+def _uma_passada(pot):
+    y_R, zeros, r_start = _adaptativo(pot, 0.0, eventos=True)
+    u_R, slope, integral = y_R[0], y_R[1], y_R[2]
+
+    inv_a = slope / (slope * pot.R - u_R)          # sem ramo, sem sinal a inventar
+    a = 1.0 / inv_a
+
+    C = (1.0 - pot.R / a) / u_R
+    reta = pot.R - pot.R ** 2 / a + pot.R ** 3 / (3.0 * a ** 2)
+    r0 = 2.0 * (reta - C * C * integral)
+
+    nodes = int(np.sum(zeros > r_start * (1.0 + 1e-12)))
+    if pot.R < a and abs(r0 / a) > UNITARITY:       # a reta contribui com um no
+        nodes += 1                                  # em r = a, ate' a unitariedade
+    return a, r0, nodes
+\end{lstlisting}
+
+A alternativa natural --- integrar a diferença $v=u-(1-r/a)$, que removeria o
+cancelamento --- foi implementada e descartada: $v$ obedece à equação homogênea
+no caroço, de modo que integrá-la para dentro através de uma parede repulsiva
+seleciona a solução exponencialmente crescente. Medido no potencial HFD-B, $v$
+alcançou $10^{240}$.
+
+\paragraph{A cauda.} Truncar em $R$ custa pouco a $a$ (erro $\sim R^{-3}$) mas
+custa a $r_0$ um termo que cai apenas como $1/R$ quando a cauda é de van der
+Waals: cada década de corte compra um dígito. Empurrar $R$ também não resolve
+--- passado $R\sim10^6$ a parte da reta carrega o arredondamento acumulado e
+$r_0$ colapsa, medido. O corte não é escolhido: é eliminado.
+
+\begin{lstlisting}[caption={\cod{lab.py} --- com $r_0(R)=r_0-K/R$, dois cortes a
+um fator $F$ de distância eliminam o termo; um terceiro em $F^2R$ confere. Onde
+a cauda é exponencial ou ausente os três já concordam e a extrapolação devolve
+o mesmo número.}]
+def _extrapolado(pot, fator=3.0):
+    a1, r0_1, nos = _num_corte(pot, pot.R)
+    a2, r0_2, nos2 = _num_corte(pot, fator * pot.R)
+    r0 = (fator * r0_2 - r0_1) / (fator - 1.0)
+    return a2, r0, nos2
+\end{lstlisting}
+
+A troca dessa política corrigiu um sistemático real: no corte fixo anterior os
+alcances efetivos do Lennard-Jones saíam baixos em até $1{,}6\times10^{-3}$
+relativo, muito acima do ruído do integrador.
+
+\paragraph{O problema inverso.} A calibração é duas equações a duas incógnitas,
+resolvida como duas buscas encaixadas --- a externa move a escala até $r_0$
+fechar, a interna move a intensidade até $1/a$ fechar.
+
+\begin{lstlisting}[caption={\cod{lab.py} --- o limiar é \emph{relativo}: a mesma
+rotina é chamada para $r_0=1$ e para $r_0=136\,a_0$, e um limiar absoluto seria
+duas exigências diferentes. \cod{nodes\_target} não é opcional: duas soluções
+podem compartilhar $(a,r_0)$ e diferir em número de nós, e então não são o
+mesmo estado físico.}]
+def tune(name, a_target, r0_target, strength, scale, nodes_target=None):
+    if math.isinf(a_target):
+        inv_a_target = 0.0
+    else:
+        inv_a_target = 1.0 / a_target
+    for step in range(25):
+        strength = match_a(name, scale, strength, inv_a_target)
+        a, r0, nodes = scattering(POTENTIALS[name](strength, scale))
+        if abs(r0 / r0_target - 1.0) < 1e-8:
+            break
+        def r0_error(trial_scale):
+            s = match_a(name, trial_scale, strength, inv_a_target)
+            a2, r02, n2 = scattering(POTENTIALS[name](s, trial_scale))
+            return r02 - r0_target
+        scale = find_root(r0_error, scale)
+    ...
+    ok = abs(r0 / r0_target - 1.0) < 1e-7
+    if nodes_target is not None and nodes != nodes_target:
+        ok = False
+    return strength, scale, a, r0, nodes, ok
+\end{lstlisting}
+
+Usa-se bisseção encaixada e não Newton em duas variáveis porque as curvas de
+nível de $1/a$ e de $r_0$ no plano (intensidade, escala) são quase paralelas em
+boa parte do domínio: o jacobiano seria mal condicionado exatamente ali. O
+preço é de $646$ a $785$ chamadas do integrador por ponto, medidas nas quatro
+formas; optou-se pela robustez. O limiar de $10^{-7}$ é onde o problema direto
+deixa de ser reprodutível: medido, o ajuste do Lennard-Jones estaciona em
+$4{,}0\times10^{-8}$, que é o ruído da extrapolação da cauda.
+
+\paragraph{A escala, usada de propósito.} \cod{rescale} implementa
+$r\to\lambda r$ com os expoentes ditados pela dimensão de cada coeficiente
+($[C_6]=L^4$, $[C_{12}]=L^{10}$); \cod{unit\_solution} busca a solução unitária
+uma vez por forma e guarda; \cod{unitary} e \cod{calibrate} só multiplicam.
+
+\begin{lstlisting}[caption={\cod{etrych.py} --- a economia não é cosmética.
+Ajustado direto em $r_{\rm eff}=136\,a_0$ o Lennard-Jones leva $144$~s e
+\emph{falha} em três das cinco linhas, porque o chute inicial carrega $L^{10}$;
+ajustado em $r_0=1$ e reescalado leva $1{,}4$~s.}]
+def rescale(name, p1, p2, L):
+    if name == "lj":
+        return p1 * L ** 4, p2 * L ** 10
+    return p1, p2 / L
+
+def calibrate(name, row):          # a = a_-, r0 = r_eff, para uma linha
+    p1, p2 = at_ratio(name, ratio(row))
+    return rescale(name, p1, p2, row["r_eff"])
+\end{lstlisting}
+
+Ao caminhar de um ponto a outro da família, \cod{at\_ratio} parte da razão
+vizinha já resolvida em vez da unitariedade, com o passo limitado: a solução se
+move suavemente ao longo da família, e o vizinho é um chute muito melhor.
+Medido sobre uma família de 25 pontos, $3{,}6$ vezes menos chamadas do
+integrador, com parâmetros idênticos em $6\times10^{-14}$.
+
+\paragraph{As duas famílias.} \cod{family\_retuned} reajusta os dois parâmetros
+a cada ponto, travando $r_0$ por construção; \cod{family\_fixed\_range} congela
+o alcance na solução unitária e varre só a intensidade, e aí $r_0$ é
+\emph{resultado} --- o quanto ele anda é a medida da dependência de forma. As
+duas são lidas na \emph{mesma} lista de $1/a$: varrer a profundidade
+diretamente seria a comparação errada, porque o mesmo passo em profundidade é
+um passo diferente em $1/a$ para cada forma.
+
+Para o Lennard-Jones, ``aumentar a intensidade'' admite duas leituras. Com
+$V=\tfrac12(C_{12}/r^{12}-C_6/r^6)$, o mínimo fica em $r_m^6=2C_{12}/C_6$ com
+profundidade $C_6^2/8C_{12}$: multiplicar \emph{ambos} os coeficientes pelo
+mesmo fator deixa $r_m$ onde estava e multiplica a profundidade, que é o que as
+outras três formas fazem; mexer só em $C_6$ aprofunda \emph{e} desloca o
+mínimo. \cod{sweep\_c6\_alone} existe para medir a diferença em vez de
+afirmá-la.
+
+\section{Resultados}
+
+\begin{table}[htbp]
+\centering
+\caption{Tabela III de [1], transcrita. Comprimentos em raios de Bohr. Três
+ressalvas da fonte: o $r_{\rm eff}$ não é medido, vem do cálculo de canais
+acoplados dos autores perto de $B_{\rm res}$; a linha de $33{,}5820$~G é
+reproduzida ali de outras referências; e $a_p$ é o símbolo do artigo e
+\emph{não} é o $a_+$ dele --- a modulação log-periódica do lado positivo tem
+mínimos em $a_+e^{j\pi/s_0}$ e máximos em $a_pe^{j\pi/s_0}$, com
+$a_p=a_+e^{\pi/(2s_0)}$. A razão universal testada é $a_p/a_-=-1$.}
+\label{tab:iii}
+\small
+\begin{tabular}{lrrrr@{\,}c@{\,}lr@{\,}c@{\,}lr}
+\toprule
+estado & $B_{\rm res}$ (G) & $s_{\rm res}$ & $r_{\rm eff}$ &
+\multicolumn{3}{c}{$a_-$} & \multicolumn{3}{c}{$a_p$} & $r_{\rm eff}/a_-$ \\
+\midrule
+\TabEtrychIIICorpo
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{\textbf{Item (i).} Acima: as quatro soluções unitárias em $r_0=1$,
+calculadas uma vez por forma; toda a calibração unitária das cinco linhas sai
+delas por multiplicação. Abaixo: a calibração em $a=a_-$ com $r_0=r_{\rm eff}$,
+vinte linhas, em raios de Bohr. Em todos os casos o ramo é o mais raso, sem
+estados ligados profundos --- escolha discutida na Seção~\ref{sec:ramos}.}
+\label{tab:calib}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+forma & primeiro parâmetro & segundo parâmetro & $1/a$ & $r_0$ \\
+\midrule
+\TabEtrychUnitarioCorpo
+\bottomrule
+\end{tabular}
+
+\vspace{0.45cm}
+
+\begin{tabular}{rrlrrrrr}
+\toprule
+$r_{\rm eff}$ & $a_-$ & forma & primeiro & segundo & $a$ & $r_0$ & estados \\
+\midrule
+\TabEtrychAminusCorpo
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{\textbf{Item (ii).} O que cada prescrição faz com $r_0/r_{\rm eff}$ ao
+longo da mesma caminhada, de $r_{\rm eff}/a=\EtrychAlvoBaixo$ a
+$+\EtrychAlvoAlto$, lida nos mesmos valores de $1/a$ para todas as formas.}
+\label{tab:fam}
+\small
+\begin{tabular}{lrrrrrr}
+\toprule
+forma & \multicolumn{3}{c}{só a intensidade} & \multicolumn{2}{c}{ambos reajustados} & intensidade \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}
+ & menor $r_0$ & maior $r_0$ & abertura & menor $r_0$ & maior $r_0$ & necessária \\
+\midrule
+\TabEtrychFamiliasCorpo
+\bottomrule
+\end{tabular}
+\end{table}
+
+Três leituras da Tabela~\ref{tab:fam} e das figuras:
+
+\begin{enumerate}\itemsep2pt
+  \item \textbf{Duas dispersões distintas, que não devem ser confundidas.} A
+        coluna ``abertura'' é quanto o $r_0$ de \emph{uma mesma} forma anda ao
+        longo de toda a varredura --- de \EtrychDerivaWell{} a
+        \EtrychDerivaLj{} nas quatro formas, e \EtrychDerivaCseis{} na
+        caminhada por $C_6$ --- e é propriedade da prescrição 2, que, ao
+        congelar o alcance, deixa de manter $r_0$ fixo. A \emph{dependência de
+        forma} é outra coisa: a discordância \emph{entre} as quatro formas no
+        \emph{mesmo} ponto. Ela vale zero na unitariedade por construção,
+        cresce quase linearmente a partir dali e atinge apenas
+        \EtrychLequeAmenos{} em $r_{\rm eff}/a=-0{,}16$, extremo da faixa onde
+        os $a_-$ se encontram, e \EtrychLequeRaso{} em $-0{,}06$. É essa a
+        incerteza que um cálculo de três corpos herdaria da escolha de forma,
+        e ela é pequena comparada com o fator $1{,}3$ a $1{,}4$ que separa o
+        $a_-$ medido ($-12{,}1$ a $-14{,}1\,r_{\rm vdW}$) da previsão de van
+        der Waals ($-9{,}7$). Resta medir o fator com que ela se propaga de
+        $r_0$ para o $a_-$ previsto, que não é unitário e não foi determinado
+        aqui.
+  \item \textbf{O Lennard-Jones anda menos.} Precisa de \EtrychForcaLj{} de
+        variação na intensidade contra \EtrychForcaWell{} do poço quadrado
+        para a mesma faixa de $1/a$; por $C_6$ sozinho, apenas
+        \EtrychForcaCseis{}, ao preço de o mínimo do potencial deslizar
+        \EtrychMinimoCseis{} ao longo do caminho em vez de ficar parado.
+  \item \textbf{Os estados ligados} contam $0$ em todo o lado $a<0$ e $1$ logo
+        após a ressonância, nas quatro formas e nas duas prescrições --- o
+        dímero raso entrando. Nenhuma sequência pula de ramo, verificado ponto
+        a ponto.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.70\textwidth]{../../resultados/figuras/alcance_efetivo.pdf}\\[2pt]
+\includegraphics[width=0.70\textwidth]{../../resultados/figuras/intensidade.pdf}\\[2pt]
+\includegraphics[width=0.70\textwidth]{../../resultados/figuras/estados_ligados.pdf}
+\caption{Acima: alcance efetivo ao longo do caminho --- tracejado, prescrição 1
+(com $r_0$ fixo por construção); cheio, prescrição 2; pontilhado roxo, a
+caminhada com $C_6$ sozinho. Meio: o parâmetro de intensidade, em unidades do
+valor unitário. Abaixo: a contagem de estados ligados, com larguras de traço
+escalonadas porque as quatro formas coincidem; o degrau aparece um ponto de
+malha após a origem porque o ponto em $1/a=0$ é a semente unitária, onde o
+estado está exatamente no limiar --- é resolução da varredura, não física.
+Verticais pontilhadas: cinzas os $a_-$, amarelas os $a_p$.}
+\label{fig:tudo}
+\end{figure}
+
+\section{O ramo: quantos dímeros profundos o potencial carrega}
+\label{sec:ramos}
+
+Um resultado que não estava no escopo da tarefa e que organiza o passo
+seguinte. \textbf{O par $(a,r_0)$ não determina o potencial.} Aprofundando uma
+forma além de cada polo de $a$, um novo estado ligado aparece e o mesmo
+$(a,r_0)$ é alcançado de novo, agora com um dímero profundo a mais. A
+calibração tem, portanto, uma solução por ramo.
+
+\begin{table}[htbp]
+\centering
+\caption{A mesma calibração --- $a_-=-830$, $r_{\rm eff}=136\,a_0$ --- em três
+ramos do poço quadrado. Os três são indistinguíveis em espalhamento de dois
+corpos de baixa energia e carregam zero, um e dois dímeros profundos. O alcance
+quase não muda; o que muda é a profundidade.}
+\label{tab:ramos}
+\small
+\begin{tabular}{crrrrr}
+\toprule
+dímeros profundos & $v$ & $R$ ($a_0$) & $R/r_{\rm vdW}$ & $a$ ($a_0$) & $r_0$ ($a_0$) \\
+\midrule
+\TabEtrychRamosCorpo
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Por que isso importa, e por que é testável.} Em dois corpos os três
+potenciais da Tabela~\ref{tab:ramos} são indistinguíveis --- é exatamente o que
+a universalidade afirma. Em três corpos não são, por uma razão concreta: um
+dímero profundo dá ao trímero de Efimov \emph{para onde decair}. A taxa desse
+decaimento é o que o parâmetro de largura $\eta$ mede. No ramo mais raso não há
+dímeros profundos, não há esse canal, e $\eta$ seria exatamente zero.
+
+A Tabela~\ref{tab:iii} publica $\eta_-$ para todas as cinco linhas, entre
+\EtrychEtaMenor{} e \EtrychEtaMaior{}, todos claramente diferentes de zero ---
+como se espera do potássio-39, que carrega dezenas de estados moleculares
+profundos. \textbf{A medida já exclui o ramo raso como descrição do sistema
+real.}
+
+Isso converte a escolha do ramo, que no escopo original era uma decisão
+arbitrária registrada como pergunta em aberto, em um \emph{teste}: um cálculo
+de três corpos em cada ramo pode ser comparado com o $\eta_-$ publicado. O ramo
+raso passa a ser o caso de controle --- o que a universalidade de alcance zero
+sozinha diria --- e um ramo com estados profundos é o candidato realista. Se um
+deles reproduzir $\eta_-\approx0{,}25$ a $0{,}3$, isso valida o potencial por
+um caminho independente do próprio $a_-$.
+
+\paragraph{Dois detalhes que a implementação expôs.} O primeiro: o ramo não
+determina o potencial sozinho. A busca encontra mais de uma solução dentro do
+mesmo ramo, com o mesmo $(a,r_0)$ e o mesmo número de estados, diferindo no
+alcance --- no ramo de um dímero profundo, o poço quadrado admite $136\,a_0$ e
+também $1428\,a_0$. A segunda é descartada por critério físico, não numérico:
+$1428\,a_0$ são vinte e dois alcances de van der Waals, e nada no potássio-39
+é tão longo. As soluções mantidas ficam entre \EtrychRamoAlcanceBaixo{} e
+\EtrychRamoAlcanceAlto{} vezes $r_{\rm vdW}$.
+
+O segundo: exigir $r_0>0$ não é consequência, é requisito. A razão $r_0/a$
+atinge o alvo também com os dois sinais invertidos, e reescalar por $1/r_0$
+pediria então um fator de escala negativo. A exigência física é
+$r_0=+r_{\rm eff}$ com $a=a_-<0$, e reescalar por fator positivo não conserta
+sinal.
+
+\section{Verificação}
+
+Trinta conferências automáticas, agrupadas por \emph{contra o que} comparam ---
+distinção que importa, porque conferir contra forma fechada não é conferir o
+integrador, e conferir o código contra ele mesmo não é conferir correção.
+
+\begin{table}[htbp]
+\centering
+\caption{As conferências de \cod{test\_lab.py}, por natureza da âncora.}
+\small
+\begin{tabular}{lcl}
+\toprule
+grupo & n & âncora \\
+\midrule
+formas fechadas & 7 & $a$ e $r_0$ do poço, estado ligado, poço unitário, polos, família \\
+tabelas publicadas & 6 & hélio com quatro potenciais, contagem de nós, mínimos de Aziz, constantes \\
+segundo método & 3 & o Numerov, em dezesseis casos \\
+invariância e estrutura & 7 & escala, corte do caroço, fim da malha, sinal na unitariedade \\
+a própria entrega & 5 & alvos de calibração, extrapolação da cauda, os ramos \\
+o código contra si mesmo & 2 & convergência de malha, pino de regressão \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Contra as formas fechadas do poço quadrado o desvio relativo é \EtrychPocoA{}
+em $a$ e \EtrychPocoRzero{} em $r_0$. Nas vinte linhas da calibração, o pior
+desvio dos alvos é \EtrychAlvoA{} em $a$ e \EtrychAlvoRzero{} em $r_0$; nas
+quatro soluções unitárias, $1/a$ fica em \EtrychUnitInv{} e $r_0$ dista
+\EtrychUnitRzero{} de $1$.
+
+O Numerov em malha logarítmica, que era o caminho de produção na versão
+anterior, virou conferência independente: ordem $4$ contra $8$, passo fixo em
+$\ln r$ contra adaptativo em $r$, Simpson em malha própria contra integral
+dentro do sistema. A troca não foi por precisão de integração --- nela os dois
+empatam --- e sim pela Eq.~\eqref{eq:ar0}: por quadratura sobre a solução,
+aquela diferença de números quase iguais sofre cancelamento, e refinar a malha
+\emph{piora} a resposta ($7\times10^{-6}$ com $8\,001$ pontos,
+$5{,}6\times10^{-3}$ com $128\,001$). Um método que piora quando refinado não
+consegue informar o próprio erro.
+
+O que limita este cálculo hoje não é mais o integrador, e sim a cauda de van
+der Waals de segunda ordem do Lennard-Jones, que a extrapolação remove apenas
+em primeira ordem; as outras três formas já concordam nos três cortes.
+
+\section{Limitações}
+
+\textbf{Canal único.} Um potencial de canal único não reproduz integralmente
+uma ressonância de Feshbach, que é problema de dois canais. As prescrições
+imitam a variação de $a$, não o acoplamento.
+
+\textbf{Nenhuma das ressonâncias é larga.} A ressalva pesa mais do que
+pareceria, porque a universalidade de van der Waals para o parâmetro de três
+corpos é derivada no regime $s_{\rm res}\gg1$, e nenhuma das cinco linhas está
+nele --- os autores classificam quatro delas como de intensidade intermediária.
+Sinal independente disso: eles próprios observam que, para as quatro mais
+fortes, o $r_{\rm eff}$ fica cerca de $25\%$ abaixo do
+$\approx2{,}8\,r_{\rm vdW}$ esperado para ressonâncias largas. O alcance
+efetivo que entra nesta calibração já não é o de ressonância larga --- o que
+torna a correção de alcance finito ainda mais pertinente, e é exatamente ela
+que este trabalho embute no potencial.
+
+\textbf{A linha de $162{,}36$~G} é a que mais destoa em tudo: $s_{\rm res}$ e
+$r_{\rm eff}$ bem menores que os demais e $r_{\rm eff}/a_-$ cerca de metade. É
+ali que o caráter de dois canais deve aparecer primeiro.
+
+\textbf{O que não foi medido.} O fator com que a incerteza de forma se propaga
+de $r_0$ para o $a_-$ previsto. Não é unitário, e só o cálculo de três corpos
+o determina.
+
+\paragraph{Reprodução.} \cod{python test\_lab.py} roda as conferências;
+\cod{python notas\_teoria/fonte/gerar.py} regenera as tabelas, os números
+citados no texto, as três figuras e os arquivos \cod{calibracoes.csv},
+\cod{familias.csv} e \cod{corte\_da\_cauda.csv} em \cod{resultados/}.
+
+\begin{thebibliography}{9}\small
+\bibitem{etrych}
+J.~Etrych, G.~Martirosyan, A.~Cao, J.~A.~P.~Glidden, L.~H.~Dogra,
+J.~M.~Hutson, Z.~Hadzibabic e C.~Eigen,
+\textit{Pinpointing Feshbach resonances and testing Efimov universalities in
+$^{39}$K}, Phys.\ Rev.\ Research \textbf{5}, 013174 (2023).
+
+\bibitem{macedo}
+A.~Macêdo-Lima e L.~Madeira,
+\textit{Scattering length and effective range of low-energy collisions},
+Rev.\ Bras.\ Ensino Fís.\ \textbf{45}, e20230079 (2023).
+
+\bibitem{motovilov}
+A.~K.~Motovilov, W.~Sandhas, S.~A.~Sofianos e E.~A.~Kolganova,
+\textit{Binding energies and scattering observables in the $^4$He$_3$ atomic
+system}, Eur.\ Phys.\ J.\ D \textbf{13}, 33 (2001).
+\end{thebibliography}
+
+\end{document}
