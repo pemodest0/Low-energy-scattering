@@ -641,6 +641,281 @@ def test_the_deep_branches_share_the_two_body_observables():
 
 
 # =============================================================================
+#  The branch boundaries, against two closed-form ladders
+# =============================================================================
+def test_the_pole_ladder_of_the_well_is_the_odd_squares():
+    """Poles of a for the square well sit at depth (2n-1)^2 times the first.
+
+    The well at unitarity with r0 = 1 has v = pi^2/8 and mu = 1, so turning the
+    depth up by f puts it at v = f pi^2/8. The zero-energy solution gains a node
+    whenever sqrt(2v)/mu passes an odd multiple of pi/2, which is v = (2n-1)^2
+    pi^2 / 8: the ladder is f = 1, 9, 25, 49. Nothing here is fitted, so this
+    checks the boundary finder rather than agreeing with it.
+    """
+    f = etrych.fronteiras("well", teto=60.0)
+    assert sorted(f) == [1, 2, 3, 4], sorted(f)
+    for n, valor in f.items():
+        assert abs(valor / float((2 * n - 1) ** 2) - 1.0) < 1e-11, (n, valor)
+
+
+def test_the_pole_ladder_of_the_poschl_teller_is_n_times_two_n_minus_one():
+    """Poles of a for the Poschl-Teller sit at f = n(2n-1).
+
+    With u'' = 2(V - E)u and V = -v mu^2 / cosh^2(mu r), the zero-energy problem
+    is u_xx = -2v u / cosh^2 x, whose poles are at 2v = L(L+1). The unit
+    solution comes out at v = 1 and mu = 2 exactly, and the s-wave ladder takes
+    the odd L, so 2f = (2n-1)2n and f = n(2n-1): 1, 6, 15, 28, 45.
+    """
+    v, mu = etrych.unit_solution("mpt")
+    assert abs(v - 1.0) < 1e-11, v
+    assert abs(mu - 2.0) < 1e-11, mu
+    f = etrych.fronteiras("mpt", teto=60.0)
+    assert sorted(f) == [1, 2, 3, 4, 5], sorted(f)
+    for n, valor in f.items():
+        assert abs(valor / float(n * (2 * n - 1)) - 1.0) < 1e-10, (n, valor)
+
+
+def test_the_count_step_lags_the_pole_by_the_unitarity_threshold():
+    """The bound-state count steps up ABOVE the pole, by a fixed amount.
+
+    lab counts the node the asymptotic line contributes at r = a only once
+    |r0/a| clears lab.UNITARITY, so the count lags the physics. The lag is a
+    threshold artefact and not noise: for the square well it is the same
+    absolute displacement, 8.1e-4 in the depth multiple, at all four
+    boundaries. Pinned here so that changing lab.UNITARITY has to come past
+    this check, and so the two notions of boundary are never confused again.
+    """
+    polos = etrych.fronteiras("well", teto=60.0)
+    passos = etrych.degraus("well", teto=60.0)
+    atrasos = [passos[n] - polos[n] for n in sorted(polos)]
+    for atraso in atrasos:
+        assert atraso > 0.0, atrasos
+        assert abs(atraso / atrasos[0] - 1.0) < 1e-3, atrasos
+    assert abs(atrasos[0] / 8.1145e-4 - 1.0) < 1e-3, atrasos[0]
+
+
+def test_the_branch_search_does_not_depend_on_its_sampling():
+    """The root count is refinement-stable and the starting density is free.
+
+    r0/a is not monotone inside a branch window, so the roots are found by
+    sampling, bracketing and refining until the count repeats. If the answer
+    moved with the starting density the refinement would not have converged.
+    Six, twelve and forty-eight starting points are required to agree.
+    """
+    alvo = etrych.ratio(etrych.TABLE_III[0])
+    padrao = etrych._raizes.__defaults__
+    try:
+        saida = []
+        for pontos in (6, 12, 48):
+            etrych._raizes.__defaults__ = (pontos, 9)
+            diag = {}
+            etrych.at_ratio_on_branch("well", alvo, 1, diagnostico=diag)
+            saida.append(sorted(round(c[0], 8) for c in diag["candidatos"]))
+            for contagem in diag["contagens"]:
+                assert contagem[-1] == contagem[-2], (pontos, contagem)
+    finally:
+        etrych._raizes.__defaults__ = padrao
+    for outro in saida[1:]:
+        assert outro == saida[0], saida
+
+
+def test_the_branch_window_is_split_at_the_pole_of_the_ratio():
+    """a crosses zero once inside every window, and the split finds it.
+
+    1/a runs from 0+ at the lower edge of a window to 0- at the upper, so a
+    passes through zero exactly once and r0/a has one pole there. A bracket
+    laid across it would hand brentq the pole instead of a root. The split must
+    land strictly inside, and a must change sign across it.
+    """
+    for nome in ("well", "gauss"):
+        lo, hi = etrych.janela(nome, 1)
+        polo = etrych._onde_a_anula(nome, lo, hi)
+        assert polo is not None, nome
+        assert lo < polo < hi, (nome, lo, polo, hi)
+        margem = 1e-6 * (hi - lo)
+        abaixo = etrych._na_forca(nome, polo - margem)[0]
+        acima = etrych._na_forca(nome, polo + margem)[0]
+        assert abaixo > 0.0 > acima, (nome, abaixo, acima)
+
+
+# =============================================================================
+#  The positive side of Table III
+# =============================================================================
+def test_the_positive_side_calibration_hits_its_targets():
+    """a = a_p and r0 = r_eff, four shapes on every row that publishes a_p.
+
+    Table III gives the positive-side feature as well, and the experiment
+    reports it as the easier of the two to measure. The calibration is the same
+    machinery at a positive ratio -- nothing about it knows which side of the
+    resonance it is on -- and it is required to land just as hard, with the
+    shallow dimer that a > 0 must carry.
+    """
+    linhas = [r for r in etrych.TABLE_III if r["a_p"] is not None]
+    assert len(linhas) == 4, len(linhas)
+    for row in linhas:
+        for nome in ("well", "mpt", "gauss", "lj"):
+            p1, p2 = etrych.calibrate_p(nome, row)
+            a, r0, nodes = lab.scattering(lab.POTENTIALS[nome](p1, p2))
+            assert abs(a / row["a_p"] - 1.0) < 1e-10, (nome, row["B_txt"], a)
+            assert abs(r0 / row["r_eff"] - 1.0) < 1e-6, (nome, row["B_txt"], r0)
+            assert nodes == 1, (nome, row["B_txt"], nodes)
+
+
+def test_the_row_without_a_p_refuses_rather_than_guesses():
+    """The 162.36 G row publishes no a_p, so nothing may be invented for it."""
+    sem = [r for r in etrych.TABLE_III if r["a_p"] is None]
+    assert len(sem) == 1 and sem[0]["B_txt"] == "162.36", sem
+    assert etrych.ratio_p(sem[0]) is None
+    try:
+        etrych.calibrate_p("well", sem[0])
+    except ValueError:
+        return
+    raise AssertionError("calibrate_p invented an a_p for the 162.36 G row")
+
+
+def test_the_shape_dependence_is_near_symmetric_across_the_resonance():
+    """The spread between shapes depends on |r0/a|, not on its sign.
+
+    This is what lets the positive side carry the same weight as the negative
+    one: if the shapes disagreed much more at +0.16 than at -0.16, a
+    calibration at a_p would be the worse input however well a_p is measured.
+    Required to agree within a tenth of itself at both |r0/a| measured.
+    """
+    for mag, teto in ((0.16, 0.10), (0.30, 0.10)):
+        leques = []
+        for sinal in (-1.0, +1.0):
+            r0s = [etrych.family_fixed_range(nome, [sinal * mag])[0]["r0"]
+                   for nome in ("well", "mpt", "gauss", "lj")]
+            leques.append(max(r0s) / min(r0s) - 1.0)
+        assert abs(leques[0] / leques[1] - 1.0) < teto, (mag, leques)
+
+
+# =============================================================================
+#  What the tail cut costs, and what the extrapolation buys
+# =============================================================================
+def test_the_tail_cut_only_matters_for_the_van_der_waals_tail():
+    """Cutting at R costs r0 nothing unless the tail falls as a power.
+
+    The well is exactly zero past its edge and the Poschl-Teller and Gaussian
+    fall exponentially, so moving the cut cannot move r0 and the extrapolation
+    returns the same number. The Lennard-Jones tail is -C6/r^6 and the cut
+    costs r0 a term falling only as 1/R. Measured at the a_- point: 1e-14 for
+    the well, 4e-10 and 5e-11 for the two exponential tails, and 1.9e-5 for the
+    Lennard-Jones -- four orders of magnitude apart, which is the whole reason
+    the extrapolation exists.
+    """
+    curta = {"well": 1e-12, "mpt": 1e-8, "gauss": 1e-8}
+    for nome, teto in curta.items():
+        p1, p2 = etrych.at_ratio(nome, -0.16)
+        pot = lab.POTENTIALS[nome](p1, p2)
+        a_1, r0_1, n_1 = lab._num_corte(pot, pot.R)
+        a_3, r0_3, n_3 = lab._num_corte(pot, 3.0 * pot.R)
+        assert abs(r0_1 / r0_3 - 1.0) < teto, (nome, r0_1, r0_3)
+
+    p1, p2 = etrych.at_ratio("lj", -0.16)
+    pot = lab.LennardJones(p1, p2)
+    a_1, r0_1, n_1 = lab._num_corte(pot, pot.R)
+    a_3, r0_3, n_3 = lab._num_corte(pot, 3.0 * pot.R)
+    assert abs(r0_1 / r0_3 - 1.0) > 1e-6, (r0_1, r0_3)
+    # and the 1/R law itself: three times the cut, a third of the error
+    a_e, r0_e, n_e = lab.scattering(pot)
+    assert abs((r0_1 / r0_e - 1.0) / (r0_3 / r0_e - 1.0) / 3.0 - 1.0) < 0.05, \
+        (r0_1, r0_3, r0_e)
+
+
+def test_the_extrapolation_agrees_with_itself_one_factor_out():
+    """Extrapolating from (R, 3R) and from (3R, 9R) must give the same r0.
+
+    The two share no cut, so their difference is the honest error left by the
+    tail treatment. Measured 6.2e-7 relative on the Lennard-Jones and smaller
+    on every other shape -- against a shape dependence of 3.3 per cent, which
+    is why no closed-form tail correction is needed here. Pushing further is
+    not better: from (9R, 27R) the answer is worse, because the asymptotic line
+    grows as r and carries the accumulated round-off.
+    """
+    p1, p2 = etrych.at_ratio("lj", -0.16)
+    pot = lab.LennardJones(p1, p2)
+    perto = lab._extrapolado(pot, 3.0)[1]
+    longe = (3.0 * lab._num_corte(pot, 9.0 * pot.R)[1]
+             - lab._num_corte(pot, 3.0 * pot.R)[1]) / 2.0
+    assert abs(longe / perto - 1.0) < 1e-5, (perto, longe)
+
+
+# =============================================================================
+#  The premise: that a and r0 are all a slow collision remembers
+# =============================================================================
+def test_the_phase_shift_recovers_r0_and_leaves_a_fourth_order_term():
+    """k cot(delta) vs -1/a + r0 k^2 / 2, on the square well.
+
+    The expansion is not assumed anywhere in the solver -- a comes from the
+    asymptotic line at E = 0 and r0 from an integral -- so running the
+    collision at finite energy and recovering the same k^2 coefficient tests
+    it against something independent. The well is used because its a and r0
+    also have closed forms.
+
+    What is left over must NOT be zero: the expansion continues, and the next
+    term is the shape parameter at k^4. So the leftover is required to be
+    bounded by k^4 AND to actually scale that way -- a leftover that did not
+    shrink with k would mean the matching was biased rather than the expansion
+    truncated. Measured on the well: 4.1e-10, 5.3e-9 and 1.9e-7 at
+    k r0 = 0.01, 0.02 and 0.05, a power of 3.9 and a coefficient of 0.031.
+    """
+    p1, p2 = etrych.at_ratio("well", -0.16)
+    pot = lab.Well(p1, p2)
+    a, r0, nodes = lab.scattering(pot)
+    k0 = 1e-3
+    base = lab.k_cot_delta(pot, k0)
+
+    ks = (0.01, 0.02, 0.05)
+    sobras = []
+    for k in ks:
+        medido = lab.k_cot_delta(pot, k) - base
+        previsto = 0.5 * r0 * (k * k - k0 * k0)
+        sobra = abs(medido - previsto)
+        sobras.append(sobra)
+        assert sobra < 0.6 * k ** 4, (k, sobra, medido, previsto)
+
+    potencia = (math.log(sobras[-1] / sobras[0])
+                / math.log(ks[-1] / ks[0]))
+    assert 3.5 < potencia < 4.5, (potencia, sobras)
+
+
+def test_four_shapes_sharing_a_and_r0_scatter_alike_at_finite_energy():
+    """The claim the whole project rests on, measured rather than assumed.
+
+    If (a, r0) really is everything a slow collision keeps, then four
+    potentials as different as a square step, a smooth sech-squared well, a
+    Gaussian and a Lennard-Jones with a van der Waals tail must agree on the
+    phase shift once they are matched on those two numbers. They do not agree
+    exactly -- the expansion has further terms, and the Lennard-Jones tail
+    contributes a non-analytic k^3 among them -- so what matters is the size.
+
+    Measured at the a_- point: the four spread by 1.7e-8 at k r0 = 0.01,
+    2.3e-6 at 0.05 and 2.7e-5 at 0.1, against a shape dependence in r0 of
+    3.3e-2 and a three-body effect of order unity. The tolerances sit about
+    twenty times above those.
+    """
+    pots = [lab.POTENTIALS[nome](*etrych.at_ratio(nome, -0.16))
+            for nome in ("well", "mpt", "gauss", "lj")]
+    for k, teto in ((0.01, 5e-7), (0.05, 5e-5), (0.10, 5e-4)):
+        assert lab.shape_dependence_at_energy(pots, k) < teto, k
+
+
+def test_the_residual_at_finite_energy_grows_with_energy():
+    """And it has to vanish as the collision slows, or it is not a k^n term.
+
+    A constant residual would mean the matching was biased rather than that the
+    expansion was truncated. Required to fall by at least a factor of ten when
+    k is halved twice, which a k^3 or k^4 term does and an offset does not.
+    """
+    pots = [lab.POTENTIALS[nome](*etrych.at_ratio(nome, -0.16))
+            for nome in ("well", "mpt", "gauss", "lj")]
+    alto = lab.shape_dependence_at_energy(pots, 0.08)
+    baixo = lab.shape_dependence_at_energy(pots, 0.02)
+    assert alto / baixo > 10.0, (alto, baixo)
+
+
+# =============================================================================
 #  Plain runner, so no extra tool is needed
 # =============================================================================
 if __name__ == "__main__":

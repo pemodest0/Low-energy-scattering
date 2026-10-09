@@ -87,6 +87,26 @@ def ratio(row):
     return row["r_eff"] / row["a_minus"]
 
 
+def ratio_p(row):
+    """r0/a at the positive-side feature, or None where the row has no a_p.
+
+    Same effective range -- r_eff is a property of the resonance, not of the
+    side one approaches it from -- so only a changes, and with it the sign. The
+    162.36 G row publishes no a_p and returns None rather than a guess.
+
+    Worth having because the two sides are not equally measurable. On the
+    positive side the loss feature is the atom-dimer one and it is reported as
+    the easier and more robust measurement of the two; a_- sits on the
+    three-atom side, where the trimer crosses the continuum. A two-body
+    calibration at a_p is therefore the input for the three-body comparison
+    that experiment can supply best, which is reason enough to carry it even
+    though the task asked only for a_-.
+    """
+    if row["a_p"] is None:
+        return None
+    return row["r_eff"] / row["a_p"]
+
+
 # =============================================================================
 #  Rescaling
 #
@@ -184,6 +204,21 @@ def unitary(name, r_eff):
 def calibrate(name, row):
     """Prescription of Sec. 1 of the task: a = a_-, r0 = r_eff, for one row."""
     p1, p2 = at_ratio(name, ratio(row))
+    return rescale(name, p1, p2, row["r_eff"])
+
+
+def calibrate_p(name, row):
+    """a = a_p, r0 = r_eff: the same prescription on the positive side.
+
+    Not a separate calculation. r0/a is the only number a solution depends on,
+    so this is at_ratio() at a positive ratio and the same rescaling -- the
+    machinery is indifferent to the side. What differs is the physics it lands
+    on: a > 0 carries a shallow dimer, which the node target already expects.
+    """
+    r = ratio_p(row)
+    if r is None:
+        raise ValueError("row at %s G publishes no a_p" % row["B_txt"])
+    p1, p2 = at_ratio(name, r)
     return rescale(name, p1, p2, row["r_eff"])
 
 
@@ -308,61 +343,285 @@ def sweep_c6_alone(inv_a_reduced):
 #  different depths, the extra dimers coming out compact, of size 35 a0 and
 #  19 a0, well inside r_vdW = 64.6 a0.
 # =============================================================================
-def _ramos(name, deep, passos=400, teto=60.0):
-    """Walk the strength upward at unit scale, recording r0/a and the nodes.
+TETO_FORCA = 60.0       # highest depth multiple the branch search considers
+PISO_FORCA = 0.2        # lowest; below it there is no bound state in any shape
+XTOL_FORCA = 1e-12      # relative precision of every bisected landmark
 
-    tune() cannot be pointed at a branch: its bracket widens until the sign
-    changes and it finds its way back to the shallowest solution whatever it
-    is started from. So the branch is located first, by scanning, and only
-    then handed to a root find that stays inside it.
+
+def _na_forca(name, f):
+    """a, r0 and the bound-state count at depth multiple f, at unit scale."""
+    p1, p2 = turn_up(name, f)
+    try:
+        return lab.scattering(lab.POTENTIALS[name](p1, p2))
+    except Exception:
+        return None
+
+
+def _bisseca(teste, lo, hi, xtol=XTOL_FORCA):
+    """Where `teste` turns from false to true between lo and hi.
+
+    Requires teste(lo) false and teste(hi) true. Returns None if the solver
+    fails anywhere along the way, which is reported rather than skipped: a
+    silently dropped sample is how the scan this replaces lost boundaries.
     """
-    p1_0, p2_0 = unit_solution(name)
-    anterior = None
-    fora = []
-    for k in range(1, passos + 1):
-        f = teto * k / passos
-        p1, p2 = turn_up(name, f)
-        try:
-            a, r0, nodes = lab.scattering(lab.POTENTIALS[name](p1, p2))
-        except Exception:
-            anterior = None
-            continue
-        if anterior is not None and anterior[1] == nodes == deep:
-            fora.append((anterior[0], f, anterior[2], r0 / a))
-        anterior = (f, nodes, r0 / a)
-    return fora
+    while hi - lo > xtol * max(1.0, abs(hi)):
+        mid = 0.5 * (lo + hi)
+        t = teste(mid)
+        if t is None:
+            return None
+        if t:
+            hi = mid
+        else:
+            lo = mid
+    return 0.5 * (lo + hi)
 
 
-def at_ratio_on_branch(name, r0_over_a, deep, **kwargs):
+def degraus(name, teto=TETO_FORCA, piso=PISO_FORCA):
+    """The depth multiples at which the bound-state COUNT steps up, by bisection.
+
+    The count is a non-decreasing staircase in the depth: deepening a potential
+    cannot unbind a state, and the node correction of lab exists precisely so
+    the count does not dip as a passes through infinity. Measured monotone at
+    240 depths for every shape. So each step is the single crossing of the test
+    "count >= n", which bisection locates to 1e-12 relative and CANNOT miss,
+    however narrow.
+
+    These steps are NOT the physical boundaries -- see fronteiras() -- they are
+    what brackets them.
+    """
+    base = _na_forca(name, piso)
+    if base is None:
+        raise RuntimeError("solver fails at the floor for %s" % name)
+    topo = _na_forca(name, teto)
+    if topo is None:
+        raise RuntimeError("solver fails at the ceiling for %s" % name)
+
+    saida = {}
+    for n in range(base[2] + 1, topo[2] + 1):
+        f = _bisseca(lambda x: (lambda c: None if c is None else c[2] >= n)
+                     (_na_forca(name, x)), piso, teto)
+        if f is None:
+            raise RuntimeError("bisection for state %d failed for %s" % (n, name))
+        saida[n] = f
+    return saida
+
+
+def fronteiras(name, teto=TETO_FORCA, piso=PISO_FORCA):
+    """The depth multiples at which each bound dimer actually appears.
+
+    Two ways to ask this, and they do not agree. The bound-state count steps up
+    at the depths degraus() returns, but that step is displaced: lab counts the
+    node the asymptotic line contributes at r = a only once |r0/a| clears
+    lab.UNITARITY, so the count lags the physics and the step sits ABOVE the
+    depth where the state becomes bound. Measured: +0.08% on the first boundary
+    of every shape, and the same absolute offset, 8.114e-4, at all four
+    boundaries of the square well -- a systematic threshold artefact, not noise.
+
+    The physical boundary is the POLE of a, where 1/a = 0 and the new state
+    arrives at exactly zero binding energy. No threshold enters it. So the
+    staircase step is used only to bracket, and the boundary itself is the zero
+    of 1/a inside that bracket. Below the pole a runs to -infinity and 1/a
+    approaches zero from below; above it, from above; and the nearest other
+    structure, the zero of a, sits near the middle of the window, so a bracket
+    reaching a few percent below the step cannot contain anything else.
+
+    Validated against closed forms, two shapes, nothing fitted:
+        square well      poles at f = (2n-1)^2   1, 9, 25, 49
+        Poschl-Teller    poles at f = n(2n-1)    1, 6, 15, 28, 45
+    both to 1e-13 relative. The unit solutions those ladders rest on are closed
+    too: the well sits at v = pi^2/8, mu = 1 and the Poschl-Teller at v = 1,
+    mu = 2, each to 1e-13.
+    """
+    passos = degraus(name, teto=teto, piso=piso)
+    saida = {}
+    anterior = piso
+    for n, degrau in sorted(passos.items()):
+        f = None
+        largura = 0.01
+        while largura <= 0.30:
+            lo = max(anterior + XTOL_FORCA, degrau * (1.0 - largura))
+            c_lo = _na_forca(name, lo)
+            if c_lo is not None and c_lo[0] < 0.0:
+                f = brentq(lambda x: 1.0 / _na_forca(name, x)[0],
+                           lo, degrau, xtol=1e-14)
+                break
+            largura *= 3.0
+        if f is None:
+            raise RuntimeError("no pole of a below the count step %d for %s"
+                               % (n, name))
+        saida[n] = f
+        anterior = f
+    return saida
+
+
+def janela(name, deep, teto=TETO_FORCA, piso=PISO_FORCA):
+    """The depth window on which the shape carries exactly `deep` bound dimers."""
+    f = fronteiras(name, teto=teto, piso=piso)
+    lo = f.get(deep, piso)
+    hi = f.get(deep + 1, teto)
+    if deep > 0 and deep not in f:
+        raise RuntimeError("no branch with %d deep states below the ceiling "
+                           "for %s" % (deep, name))
+    return lo, hi
+
+
+def _onde_a_anula(name, lo, hi):
+    """Where a passes through zero inside a window, by bisection on its sign.
+
+    1/a runs monotonically from 0+ at the lower edge of a window to 0- at the
+    upper edge, which it can only do by passing through infinity: a crosses
+    zero exactly once, and r0 diverges with it. r0/a therefore has ONE pole
+    inside every window and is continuous on either side of it. Locating that
+    pole is what makes the bracketing below safe -- a bracket laid across it
+    sees a sign change with no root in it, and brentq returns the pole.
+
+    lo and hi are themselves poles of a, where |a| overflows and its sign is
+    whatever the rounding left behind. The sign must therefore be read a sliver
+    INSIDE the window, never at the edges. Reading it at the edges put the
+    pole at the lower edge for deep = 1 and lost it entirely for deep = 2, and
+    the unsplit window then handed back a degenerate potential.
+    """
+    margem = 1e-7 * (hi - lo)
+    a_lo, a_hi = lo + margem, hi - margem
+    c_lo = _na_forca(name, a_lo)
+    c_hi = _na_forca(name, a_hi)
+    if c_lo is None or c_hi is None:
+        return None
+    if (c_lo[0] > 0.0) == (c_hi[0] > 0.0):
+        return None
+    positivo_embaixo = c_lo[0] > 0.0
+    return _bisseca(lambda x: (lambda c: None if c is None
+                               else (c[0] < 0.0) == positivo_embaixo)
+                    (_na_forca(name, x)), a_lo, a_hi)
+
+
+def _raizes(name, alvo, lo, hi, pontos=12, refinos=9):
+    """Every depth in (lo, hi) where r0/a equals alvo, refined to a stable count.
+
+    r0/a is continuous here but far from monotone: it rises, turns over, crosses
+    zero where r0 does, and only then runs off to the pole. One target can be
+    met several times and no single bracket finds them all, so the interval is
+    sampled, every sign change handed to brentq, and the sampling doubled until
+    the number of roots repeats twice. The per-refinement counts come back with
+    the roots so the convergence is reported rather than asserted.
+
+    The starting density was measured, not chosen: 6, 12, 24 and 48 points all
+    return the same roots to 1e-8 and the same counts at every refinement, for
+    every shape and both branches. Twelve is kept for margin, and the whole
+    search then costs about what the 400-point grid it replaced cost -- the
+    convergence criterion comes free.
+    """
+    contagens = []
+    raizes = []
+    estaveis = 0
+    n = pontos
+    for _ in range(refinos):
+        fs = [lo + (hi - lo) * k / n for k in range(n + 1)]
+        vals = []
+        for f in fs:
+            c = _na_forca(name, f)
+            vals.append(None if c is None else c[1] / c[0] - alvo)
+
+        achadas = []
+        for k in range(n):
+            u, v = vals[k], vals[k + 1]
+            if u is None or v is None or u == 0.0 or u * v > 0.0:
+                continue
+            try:
+                achadas.append(brentq(
+                    lambda f: (lambda c: c[1] / c[0] - alvo)(_na_forca(name, f)),
+                    fs[k], fs[k + 1], xtol=1e-14))
+            except (ValueError, TypeError):
+                continue
+
+        contagens.append(len(achadas))
+        if len(contagens) >= 2 and contagens[-1] == contagens[-2]:
+            estaveis += 1
+            raizes = achadas
+            if estaveis >= 2:
+                break
+        else:
+            estaveis = 0
+            raizes = achadas
+        n *= 2
+    return raizes, contagens
+
+
+def at_ratio_on_branch(name, r0_over_a, deep, teto=TETO_FORCA, piso=PISO_FORCA,
+                       diagnostico=None):
     """Parameters with r0 = 1 and the given r0/a, on the branch with `deep`
     deeply bound dimers. deep = 0 is what at_ratio() returns.
 
-    Costs a scan of the strength, so it is far slower than at_ratio() and is
-    meant for the comparison described above, not for the production families.
+    The window is bounded by poles of a, split at the pole of r0/a, and each
+    half searched to a stable root count. Costs far more solver calls than
+    at_ratio(), so it is meant for the comparison described above and not for
+    the production families.
+
+    Pass a dict as `diagnostico` to receive the window, the pole, the
+    refinement counts and the node count at every root, which is how the test
+    suite checks the search rather than only its answer.
     """
     if deep == 0:
         return at_ratio(name, r0_over_a)
 
-    def razao(f):
-        p1, p2 = turn_up(name, f)
-        a, r0, nodes = lab.scattering(lab.POTENTIALS[name](p1, p2))
-        return r0 / a - r0_over_a
+    lo, hi = janela(name, deep, teto=teto, piso=piso)
+    polo = _onde_a_anula(name, lo, hi)
+
+    # The window edges are poles of a themselves: r0/a is 0 there and the
+    # solver is at its worst. Step in by a sliver, far smaller than any
+    # structure measured inside a window.
+    margem = 1e-7 * (hi - lo)
+    if polo is None:
+        trechos = [(lo + margem, hi - margem)]
+    else:
+        trechos = [(lo + margem, polo - margem), (polo + margem, hi - margem)]
 
     candidatos = []
-    for lo, hi, raz_lo, raz_hi in _ramos(name, deep, **kwargs):
-        if (raz_lo - r0_over_a) * (raz_hi - r0_over_a) > 0.0:
-            continue
-        f = brentq(razao, lo, hi, xtol=1e-14)
-        p1, p2 = turn_up(name, f)
-        a, r0, nodes = lab.scattering(lab.POTENTIALS[name](p1, p2))
-        # r0 > 0 is not optional. The ratio r0/a reaches its target with both
-        # signs flipped too, and rescaling by 1/r0 would then ask for a
-        # negative scale. The requirement is r0 = +r_eff with a = a_- < 0, and
-        # a positive rescaling cannot repair a sign.
-        if nodes != deep or r0 <= 0.0:
-            continue
-        q1, q2 = rescale(name, p1, p2, 1.0 / r0)
-        candidatos.append((lab.POTENTIALS[name](q1, q2).R, q1, q2))
+    contagens = []
+    discordancia = []
+    for t_lo, t_hi in trechos:
+        raizes, cont = _raizes(name, r0_over_a, t_lo, t_hi)
+        contagens.append(cont)
+        for f in raizes:
+            c = _na_forca(name, f)
+            if c is None:
+                continue
+            a, r0, nodes = c
+            # r0 > 0 is not optional. The ratio r0/a reaches its target with
+            # both signs flipped too, and rescaling by 1/r0 would then ask for
+            # a negative scale. The requirement is r0 = +r_eff with a = a_- < 0,
+            # and a positive rescaling cannot repair a sign.
+            if r0 <= 0.0:
+                continue
+            # The branch is settled by the window, which is bounded by poles of
+            # a and carries no threshold. The node count is NOT used to filter:
+            # between the pole and the count's step it still reads deep - 1,
+            # and screening on it would put lab.UNITARITY back into the answer.
+            # It is recorded instead, so any disagreement is visible.
+            discordancia.append((f, nodes))
+            p1, p2 = turn_up(name, f)
+            q1, q2 = rescale(name, p1, p2, 1.0 / r0)
+
+            # Rescaling is exact on paper and the solver still has to agree
+            # with it. Re-solve and require the rescaled potential to carry
+            # r0 = 1 and r0/a = the target. A root sitting near the pole of
+            # r0/a comes back with r0 enormous, so 1/r0 collapses the scale and
+            # leaves a potential the solver cannot integrate at all -- and that
+            # degenerate potential has range zero, which the "most compact"
+            # rule below then PREFERS. Verifying here is what stops it.
+            try:
+                a_v, r0_v, n_v = lab.scattering(lab.POTENTIALS[name](q1, q2))
+            except Exception:
+                continue
+            if not (abs(r0_v - 1.0) < 1e-6
+                    and abs(r0_v / a_v - r0_over_a) < 1e-6 * max(1.0, abs(r0_over_a))):
+                continue
+            candidatos.append((lab.POTENTIALS[name](q1, q2).R, q1, q2, f))
+
+    if diagnostico is not None:
+        diagnostico.update({"janela": (lo, hi), "polo": polo,
+                            "contagens": contagens, "nos": discordancia,
+                            "candidatos": [(c[0], c[3]) for c in candidatos]})
 
     if not candidatos:
         raise RuntimeError("no branch with %d deep states reaches r0/a = %g for %s"
