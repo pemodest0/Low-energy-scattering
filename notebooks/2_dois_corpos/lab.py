@@ -416,6 +416,59 @@ def _num_corte(pot, R):
         pot.R = guardado
 
 
+def k_cot_delta(pot, k, corte=9.0):
+    """k cot(delta) at E = k^2/2, from the s-wave phase shift.
+
+    Everything else here is computed at E = 0, where a and r0 are defined. This
+    is the one quantity that tests what those two numbers are FOR: the whole
+    project rests on the claim that a slow collision remembers nothing about
+    the potential beyond them, and that claim is about finite energy, not zero.
+    So integrate at E = k^2/2 -- the factor follows from u'' = 2(V - E)u, whose
+    free solutions go as sin(kr + delta) with k^2 = 2E -- match to that form at
+    the cut, and return k cot(delta) for comparison with -1/a + r0 k^2 / 2.
+
+    The cut is pushed to `corte` times pot.R because the match assumes V has
+    died; nothing is extrapolated, so this is a check and not a production
+    path.
+    """
+    E = 0.5 * k * k
+    R = corte * pot.R
+    r_start = pot.r_min if pot.r_min > 0.0 else R * R_START_FRACTION
+    y = [0.0, 1.0] if pot.r_min > 0.0 else [r_start, 1.0]
+
+    def campo(r, z):
+        return (z[1], 2.0 * (float(pot.V(r)) - E) * z[0])
+
+    for ini, fim in _trechos(pot, r_start, R):
+        sol = solve_ivp(campo, (ini, fim), y, method="DOP853",
+                        rtol=RTOL, atol=ATOL)
+        if not sol.success:
+            raise RuntimeError("%s: %s" % (pot.name, sol.message))
+        y = list(sol.y[:, -1])
+
+    delta = math.atan2(k * y[0], y[1]) - k * R
+    return k / math.tan(delta)
+
+
+def shape_dependence_at_energy(pots, k, k0=1e-3):
+    """How much k cot(delta) differs between potentials sharing (a, r0).
+
+    Each potential carries its own constant offset -- the inner boundary sits
+    at a finite radius and the cut is not extrapolated here -- and that offset
+    says nothing about the physics. Differencing against a small reference k
+    removes it, and subtracting r0 (k^2 - k0^2) / 2 removes the part the
+    effective-range expansion already accounts for. What is left is exactly the
+    collision that a and r0 do NOT fix, which is the error a three-body
+    calculation inherits from the choice of shape.
+    """
+    sobra = []
+    for pot in pots:
+        a, r0, nodes = scattering(pot)
+        base = k_cot_delta(pot, k0)
+        sobra.append(k_cot_delta(pot, k) - base - 0.5 * r0 * (k * k - k0 * k0))
+    return max(sobra) - min(sobra)
+
+
 def _extrapolado(pot, fator=3.0):
     """The cut removed by extrapolation, and the extrapolation checked.
 
