@@ -901,6 +901,86 @@ def test_four_shapes_sharing_a_and_r0_scatter_alike_at_finite_energy():
         assert lab.shape_dependence_at_energy(pots, k) < teto, k
 
 
+def test_the_dimer_energy_is_universal_across_the_shapes():
+    """(a, r0) fixes the bound state too, not only the scattering.
+
+    The premise is usually stated about collisions, and the shallow dimer is
+    the other half of it: four potentials matched on a and r0 must agree on
+    where the dimer sits. Measured at r0/a = 0.06: -1.9168e-3 for all four, to
+    five figures. At 0.16 they agree to four, the spread growing with r0/a as
+    the range correction does.
+    """
+    for alvo, teto in ((0.06, 1e-4), (0.16, 1e-3)):
+        energias = []
+        for nome in ("well", "mpt", "gauss", "lj"):
+            pot = lab.POTENTIALS[nome](*etrych.at_ratio(nome, alvo))
+            n, Es = lab.count_bound_states(pot)
+            assert n == 1, (nome, alvo, n)
+            energias.append(Es[0])
+        assert abs(max(energias) / min(energias) - 1.0) < teto, (alvo, energias)
+
+
+def test_the_bound_state_count_agrees_with_an_independent_count():
+    """The node count needs a threshold; counting eigenvalues does not.
+
+    scattering() reads the count off the E = 0 solution and uses UNITARITY to
+    decide whether the line's node at r = a has arrived. count_bound_states
+    sweeps E < 0 for zeros of the matching residual and shares nothing with it
+    but the integrator. They are required to agree away from unitarity, which
+    is what retires the threshold as a worry rather than hiding it.
+    """
+    for nome in ("well", "mpt", "gauss", "lj"):
+        for alvo in (-0.16, -0.06, 0.06, 0.16):
+            pot = lab.POTENTIALS[nome](*etrych.at_ratio(nome, alvo))
+            a, r0, nodes = lab.scattering(pot)
+            n, Es = lab.count_bound_states(pot)
+            assert n == nodes, (nome, alvo, nodes, n)
+
+
+def test_the_branches_are_distinct_and_counted_on_both_sides():
+    """One deep dimer must not come back as none, on either side of unitarity.
+
+    The window is indexed by the TOTAL number of bound states, and a positive
+    scattering length already carries a shallow dimer of size ~a. Indexing by
+    the number of DEEP dimers on that side returned the window one branch too
+    low, and deep = 0 and deep = 1 came back as the same potential. The ranges
+    are required to be distinct, the independent count to equal deep plus the
+    shallow one, and the shallow dimer to stay at ~a on every branch, since a
+    is what fixes it and a is held.
+    """
+    row = etrych.TABLE_III[0]
+    for nome in ("well", "gauss"):
+        alcances = []
+        for deep in (0, 1, 2):
+            if deep == 0:
+                p1, p2 = etrych.calibrate_p(nome, row)
+            else:
+                p1, p2 = etrych.calibrate_p_on_branch(nome, row, deep)
+            pot = lab.POTENTIALS[nome](p1, p2)
+            a, r0, nodes = lab.scattering(pot)
+            n, Es = lab.count_bound_states(pot)
+            assert abs(a / row["a_p"] - 1.0) < 1e-9, (nome, deep, a)
+            assert n == deep + 1, (nome, deep, n)
+            assert nodes == deep + 1, (nome, deep, nodes)
+            tamanhos = sorted(1.0 / math.sqrt(-2.0 * E) for E in Es)
+            assert abs(tamanhos[-1] / row["a_p"] - 1.0) < 0.15, \
+                (nome, deep, "shallow", tamanhos)
+            for compacto in tamanhos[:-1]:
+                assert compacto < etrych.R_VDW, (nome, deep, "deep", tamanhos)
+            alcances.append(round(pot.R, 6))
+        assert len(set(alcances)) == 3, (nome, alcances)
+
+
+def test_a_branch_cannot_be_named_at_unitarity():
+    """At r0/a = 0 the bound-state count is ambiguous, so naming a branch is
+    meaningless and must be refused rather than answered."""
+    try:
+        etrych.at_ratio_on_branch("well", 0.0, 1)
+    except ValueError:
+        return
+    raise AssertionError("a branch was named at unitarity")
+
+
 def test_the_residual_at_finite_energy_grows_with_energy():
     """And it has to vanish as the collision slows, or it is not a k^n term.
 

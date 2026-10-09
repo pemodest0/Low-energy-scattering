@@ -58,8 +58,11 @@ import lab
 #  lifetime of the trimers, and it is nonzero only when there are deeply
 #  bound dimers for them to decay into. See "the branch" below.
 #
-#  It is carried because it is the natural far end of the path in "families"
-#  below; the row at 162.36 G has none published.
+#  Both features are calibrated on -- calibrate() at a_- and calibrate_p() at
+#  a_p -- and the sweep in "families" below runs between them. The experiment
+#  reports the positive-side feature as the easier of the two to measure, and
+#  the shape dependence is as small there as it is at a_-, so a_p is the better
+#  three-body input of the two. The row at 162.36 G publishes no a_p.
 # =============================================================================
 R_VDW = 64.6            # a0, the van der Waals length of 39K, from [6]
 
@@ -564,7 +567,20 @@ def at_ratio_on_branch(name, r0_over_a, deep, teto=TETO_FORCA, piso=PISO_FORCA,
     if deep == 0:
         return at_ratio(name, r0_over_a)
 
-    lo, hi = janela(name, deep, teto=teto, piso=piso)
+    # The window is indexed by the TOTAL number of bound states, and that is
+    # not `deep`. A positive scattering length already carries a shallow dimer
+    # of size ~a, so a potential with `deep` deep dimers has deep + 1 states
+    # in all; a negative one has exactly `deep`. Indexing by `deep` on the
+    # positive side returned the window one branch too low, and deep = 0 and
+    # deep = 1 then came back as the same potential -- the shallow-only one,
+    # with its dimer at 826 a0 next to a = 900 a0, which is the shallow dimer
+    # and not a deep one.
+    if abs(r0_over_a) <= lab.UNITARITY:
+        raise ValueError("the bound-state count is ambiguous at r0/a = %g, so "
+                         "a branch cannot be named there" % r0_over_a)
+    total = deep + (1 if r0_over_a > 0.0 else 0)
+
+    lo, hi = janela(name, total, teto=teto, piso=piso)
     polo = _onde_a_anula(name, lo, hi)
 
     # The window edges are poles of a themselves: r0/a is 0 there and the
@@ -595,7 +611,7 @@ def at_ratio_on_branch(name, r0_over_a, deep, teto=TETO_FORCA, piso=PISO_FORCA,
                 continue
             # The branch is settled by the window, which is bounded by poles of
             # a and carries no threshold. The node count is NOT used to filter:
-            # between the pole and the count's step it still reads deep - 1,
+            # between the pole and the count's step it still reads total - 1,
             # and screening on it would put lab.UNITARITY back into the answer.
             # It is recorded instead, so any disagreement is visible.
             discordancia.append((f, nodes))
@@ -619,7 +635,7 @@ def at_ratio_on_branch(name, r0_over_a, deep, teto=TETO_FORCA, piso=PISO_FORCA,
             candidatos.append((lab.POTENTIALS[name](q1, q2).R, q1, q2, f))
 
     if diagnostico is not None:
-        diagnostico.update({"janela": (lo, hi), "polo": polo,
+        diagnostico.update({"janela": (lo, hi), "polo": polo, "total": total,
                             "contagens": contagens, "nos": discordancia,
                             "candidatos": [(c[0], c[3]) for c in candidatos]})
 
@@ -641,6 +657,20 @@ def at_ratio_on_branch(name, r0_over_a, deep, teto=TETO_FORCA, piso=PISO_FORCA,
 def calibrate_on_branch(name, row, deep):
     """a = a_-, r0 = r_eff, on the branch carrying `deep` deep dimers."""
     p1, p2 = at_ratio_on_branch(name, ratio(row), deep)
+    return rescale(name, p1, p2, row["r_eff"])
+
+
+def calibrate_p_on_branch(name, row, deep):
+    """a = a_p, r0 = r_eff, on the branch carrying `deep` deep dimers.
+
+    The positive side carries a shallow dimer of size ~a on top of whatever
+    deep ones the branch holds, so `deep` counts the deep ones only and the
+    total is one more. at_ratio_on_branch does that arithmetic.
+    """
+    r = ratio_p(row)
+    if r is None:
+        raise ValueError("row at %s G publishes no a_p" % row["B_txt"])
+    p1, p2 = at_ratio_on_branch(name, r, deep)
     return rescale(name, p1, p2, row["r_eff"])
 
 

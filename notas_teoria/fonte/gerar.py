@@ -338,7 +338,8 @@ def figuras(fam):
     if not os.path.isdir(pasta):
         os.makedirs(pasta)
     razoes = [etrych.ratio(row) for row in etrych.TABLE_III]
-    positivas = [row["r_eff"] / row["a_p"] for row in etrych.TABLE_III if row["a_p"]]
+    positivas = [r for r in (etrych.ratio_p(row) for row in etrych.TABLE_III)
+                 if r is not None]
 
     def marcas(ax):
         for x in razoes:

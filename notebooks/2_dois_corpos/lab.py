@@ -450,6 +450,61 @@ def k_cot_delta(pot, k, corte=9.0):
     return k / math.tan(delta)
 
 
+def count_bound_states(pot, pontos=300, topo=1e-11):
+    """The number of E < 0 eigenvalues, and their energies, by scanning.
+
+    The node count returned by scattering() is read off the E = 0 solution and
+    needs a threshold -- UNITARITY -- to decide whether the node the asymptotic
+    line contributes at r = a has arrived yet. This counts the same states
+    without ever looking at E = 0: the bound-state matching residual of
+    bound_energy() vanishes at every eigenvalue, so its sign changes are
+    counted over a logarithmic sweep in E and each one is refined.
+
+    Nothing is shared with the node count but the integrator, which is what
+    makes it a check on it. Measured in agreement for all four shapes at
+    r0/a = +-0.06 and +-0.16, and on the branches carrying one and two deep
+    dimers, where the count IS the branch.
+
+    The sweep starts at `topo` below zero and ends at the depth of the well, so
+    a state bound by less than `topo` is not seen -- near a pole there is
+    always one. That is the same ambiguity UNITARITY exists to handle, moved
+    somewhere visible rather than removed.
+    """
+    rs = np.linspace(max(pot.r_min * 1.0001, 1e-12),
+                     getattr(pot, "borda", pot.R), 3000)
+    fundo = abs(float(np.min(pot.V(rs))))
+    if fundo <= topo:
+        return 0, []
+
+    def residuo(E):
+        guardado, pot.R = pot.R, _raio_para_energia(pot, E)
+        try:
+            y, nos, r_start = _adaptativo(pot, E)
+        finally:
+            pot.R = guardado
+        kappa = math.sqrt(-2.0 * E)
+        return (y[1] + kappa * y[0]) / max(abs(y[0]), abs(y[1]), 1.0)
+
+    Es = -np.logspace(math.log10(topo), math.log10(fundo), pontos)
+    vals = []
+    for E in Es:
+        try:
+            vals.append(residuo(E))
+        except Exception:
+            vals.append(None)
+
+    energias = []
+    for k in range(len(vals) - 1):
+        u, v = vals[k], vals[k + 1]
+        if u is None or v is None or u * v > 0.0:
+            continue
+        try:
+            energias.append(brentq(residuo, Es[k], Es[k + 1], xtol=1e-18))
+        except (ValueError, RuntimeError):
+            energias.append(0.5 * (Es[k] + Es[k + 1]))
+    return len(energias), sorted(energias)
+
+
 def shape_dependence_at_energy(pots, k, k0=1e-3):
     """How much k cot(delta) differs between potentials sharing (a, r0).
 
