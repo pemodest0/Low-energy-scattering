@@ -26,3 +26,8 @@ arquivo/
 
 # resultados: saida gerada por gerar.py, vai por e-mail, nao versionada
 resultados/
+
+# PDF compilado dentro de fonte/: o de notas_teoria/ e o que vale, e o
+# relatorio sai por e-mail e nao entra no repo. figures/ nao e afetado.
+notas_teoria/fonte/*.pdf
+notas_teoria/fonte/*.toc
