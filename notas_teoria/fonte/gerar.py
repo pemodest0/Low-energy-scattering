@@ -139,10 +139,13 @@ def poco():
 def ramos():
     """The same (a, r0) on branches carrying 0, 1 and 2 deeply bound dimers.
 
-    Square well only: the search scans the strength, which is cheap here and
-    expensive for the Lennard-Jones, and the point being made is qualitative
-    -- that the branch is a real choice with a measurable consequence -- not
-    shape dependent.
+    Square well only, and the restriction is not cosmetic: the depths are the
+    odd squares exactly, so the well is where the branch ladder can be checked
+    against a closed form. The qualitative point -- that the branch is a real
+    choice with a measurable consequence -- holds for every shape, but the
+    quantitative one does NOT: the well keeps nearly the same range on all
+    three branches and the other shapes do not, which `alcances_por_ramo`
+    measures rather than the caption asserting it.
     """
     row = etrych.TABLE_III[0]
     fora = []
@@ -156,10 +159,165 @@ def ramos():
     return fora
 
 
+def alcances_por_ramo():
+    """How much the range moves between branches, shape by shape.
+
+    The square well barely moves and that is a property of the square well.
+    Measured so the write-up can say which it is instead of generalising from
+    the one shape its table shows.
+    """
+    row = etrych.TABLE_III[0]
+    fora = {}
+    for name in ("well", "mpt", "gauss"):
+        Rs = []
+        for deep in (0, 1, 2):
+            p1, p2 = etrych.calibrate_on_branch(name, row, deep)
+            Rs.append(lab.POTENTIALS[name](p1, p2).R)
+        fora[name] = {"R": Rs, "espalhamento": max(Rs) / min(Rs) - 1.0}
+    return fora
+
+
+def premissa():
+    """What (a, r0) does NOT fix, measured at finite energy and in the dimer.
+
+    The whole construction rests on a slow collision remembering a and r0 and
+    nothing else about the potential. That is a statement about finite energy,
+    and everything else here is computed at E = 0, so it was assumed and never
+    checked. This checks it twice: in the phase shift, and in the one place
+    where a bound state exists to be compared.
+
+    The four shapes are matched on (a, r0) at the a_- point and then asked for
+    k cot(delta). Each carries a constant offset of its own -- the inner
+    boundary is at a finite radius and the cut is not extrapolated here -- so
+    the comparison is differenced against a small reference k, and the
+    effective-range term is subtracted. What is left is the collision the two
+    numbers do not determine.
+    """
+    # Everything here is returned as LISTS OF PAIRS, never as a dict keyed by
+    # a number. This goes through the json cache, and json has only string
+    # keys: a fresh run would hand back float keys and a cached run strings,
+    # so the formatters below would work once and crash on the second run.
+    pots = [lab.POTENTIALS[n](*etrych.at_ratio(n, -0.16)) for n in FORMAS]
+    leque = [[k, lab.shape_dependence_at_energy(pots, k)]
+             for k in (0.01, 0.02, 0.05, 0.10)]
+
+    # the leftover of one shape, and the power it follows: if it were an
+    # artefact of the matching it would not shrink with k at all
+    pot = lab.Well(*etrych.at_ratio("well", -0.16))
+    a, r0, nodes = lab.scattering(pot)
+    base = lab.k_cot_delta(pot, 1e-3)
+    sobras = []
+    for k in (0.01, 0.02, 0.05):
+        medido = lab.k_cot_delta(pot, k) - base
+        sobras.append([k, abs(medido - 0.5 * r0 * (k * k - 1e-6))])
+    potencia = math.log(sobras[-1][1] / sobras[0][1]) / math.log(5.0)
+    coef = sobras[-1][1] / sobras[-1][0] ** 4
+
+    # and the bound sector: the shallow dimer, where a > 0 puts one
+    dimeros = []
+    for alvo in (0.06, 0.16):
+        Es = []
+        for name in FORMAS:
+            p = lab.POTENTIALS[name](*etrych.at_ratio(name, alvo))
+            n, energias = lab.count_bound_states(p)
+            Es.append(energias[0])
+        # the energies are negative, so max/min would come back below one and
+        # the spread negative. Compare binding energies, which are magnitudes.
+        fundo = [abs(E) for E in Es]
+        dimeros.append([alvo, {"E": Es,
+                               "espalhamento": max(fundo) / min(fundo) - 1.0}])
+
+    return {"leque": leque, "potencia": potencia, "coeficiente": coef,
+            "sobras": sobras, "dimeros": dimeros}
+
+
+def escadas():
+    """The branch boundaries against the two closed forms they have.
+
+    The boundary is the pole of a, located by bisection. For two of the four
+    shapes the ladder of poles is analytic, which turns the search into
+    something checkable rather than merely convergent.
+    """
+    fora = {}
+    for name, formula, rotulo in (
+            ("well", lambda n: float((2 * n - 1) ** 2),
+             r"\ensuremath{(2n-1)^2}"),
+            ("mpt", lambda n: float(n * (2 * n - 1)),
+             r"\ensuremath{n(2n-1)}")):
+        f = etrych.fronteiras(name, teto=60.0)
+        passos = etrych.degraus(name, teto=60.0)
+        fora[name] = {
+            "rotulo": rotulo,
+            "polos": [f[n] for n in sorted(f)],
+            "exatos": [formula(n) for n in sorted(f)],
+            "erro": max(abs(f[n] / formula(n) - 1.0) for n in f),
+            "atraso": passos[min(passos)] - f[min(f)],
+        }
+    return fora
+
+
+def positivas():
+    """The calibration at a = a_p, and the shape dependence there.
+
+    Table III publishes the positive-side feature for four of its five rows,
+    and the experiment reports it as the easier of the two to measure. Whether
+    that helps depends on the theory side being no worse conditioned there,
+    which is what the spread between shapes says.
+    """
+    linhas = []
+    for row in etrych.TABLE_III:
+        r = etrych.ratio_p(row)
+        if r is None:
+            continue
+        for name in FORMAS:
+            p1, p2 = etrych.calibrate_p(name, row)
+            a, r0, nodes = lab.scattering(lab.POTENTIALS[name](p1, p2))
+            linhas.append({"B_res": row["B_txt"], "r_eff": row["r_eff"],
+                           "a_p": row["a_p"], "razao": r, "forma": name,
+                           "p1": p1, "p2": p2, "a": a, "r0": r0,
+                           "estados": nodes})
+    leque = {}
+    for row in etrych.TABLE_III:
+        r = etrych.ratio_p(row)
+        if r is None:
+            continue
+        v = [etrych.family_fixed_range(n, [r])[0]["r0"] for n in FORMAS]
+        leque[row["B_txt"]] = max(v) / min(v) - 1.0
+    return {"linhas": linhas, "leque": leque}
+
+
 def tabela_ramos(rm):
     return ["%d & %.5f & %.1f & %.2f & $%.3f$ & %.3f \\\\"
             % (l["profundos"], l["v"], l["R"], l["R_sobre_rvdw"], l["a"], l["r0"])
             for l in rm]
+
+
+def tabela_positivas(pos):
+    """One row per shape per published a_p.
+
+    The parameters go through notacao() for the same reason the a_- table does:
+    the Lennard-Jones coefficients are 1e8 and 1e18 at these ranges, and a
+    fixed-point format turns them into unreadable walls of digits.
+    """
+    linhas = []
+    visto = None
+    for l in pos["linhas"]:
+        if l["B_res"] != visto:
+            if visto is not None:
+                linhas.append(r"\addlinespace")
+            cabeca = "%s & $%d$" % (l["B_res"], l["a_p"])
+        else:
+            cabeca = " & "
+        visto = l["B_res"]
+        linhas.append("%s & %s & %s & %s & $%.3f$ & %.3f & %d \\\\"
+                      % (cabeca, MACRO[l["forma"]], notacao(l["p1"]),
+                         notacao(l["p2"]), l["a"], l["r0"], l["estados"]))
+    return linhas
+
+
+def tabela_premissa(pr):
+    """The part of the collision (a, r0) does not fix, against k r0."""
+    return ["$%.2f$ & %s \\\\" % (k, notacao(v)) for k, v in pr["leque"]]
 
 
 def cauda():
@@ -178,6 +336,30 @@ def cauda():
         fora.append({"corte": "%dR" % m, "R": base * m,
                      "inv_a": 1.0 / a, "r0": r0})
     return fora
+
+
+def residuo_da_cauda():
+    """How far the tail extrapolation is from itself, one factor out.
+
+    Extrapolating from (R, 3R) and from (3R, 9R) shares no cut, so the
+    difference between them is the honest error the tail treatment leaves --
+    not an estimate of it. Measured at the a_- point, where the calibration
+    actually sits, rather than at unitarity.
+
+    Also returns the (9R, 27R) extrapolation, which is WORSE: past a few
+    hundred times the range the asymptotic line, growing as r, carries the
+    accumulated round-off and r0 starts to collapse. So 3R is not laziness, it
+    is where the two error sources cross.
+    """
+    pot = lab.LennardJones(*etrych.at_ratio("lj", -0.16))
+    def extrap(f):
+        perto = lab._num_corte(pot, f * pot.R)[1]
+        longe = lab._num_corte(pot, 3.0 * f * pot.R)[1]
+        return (3.0 * longe - perto) / 2.0
+    um, tres, nove = extrap(1.0), extrap(3.0), extrap(9.0)
+    return {"r0": um,
+            "residuo": abs(tres / um - 1.0),
+            "residuo_longe": abs(nove / um - 1.0)}
 
 
 # =============================================================================
@@ -288,6 +470,8 @@ def macros(tabela, deriva, forca, lq):
         % notacao(max(abs(l["a"] / l["a_menos"] - 1.0) for l in alvo)),
         r"\newcommand{\EtrychAlvoRzero}{%s}"
         % notacao(max(abs(l["r0"] / l["r_eff"] - 1.0) for l in alvo)),
+        # the ratio the premise is measured at, so the caption does not type it
+        r"\newcommand{\EtrychAlvoRazao}{%.2f}" % -0.16,
         r"\newcommand{\EtrychAlvoBaixo}{%.2f}" % ALVOS[0],
         r"\newcommand{\EtrychAlvoAlto}{%.2f}" % ALVOS[-1],
         r"\newcommand{\EtrychLequeBorda}{%.1f\%%}" % (100.0 * lq[ALVOS[0]]),
@@ -412,6 +596,15 @@ def main():
     pc = memo("poco", poco)
     rm = memo("ramos", ramos)
     SAIDA_TEX.append(("TabEtrychRamosCorpo", tabela_ramos(rm)))
+
+    pr = memo("premissa", premissa)
+    esc = memo("escadas", escadas)
+    pos = memo("positivas", positivas)
+    alc = memo("alcances_ramo", alcances_por_ramo)
+    rc = memo("residuo_cauda", residuo_da_cauda)
+    SAIDA_TEX.append(("TabEtrychPositivasCorpo", tabela_positivas(pos)))
+    SAIDA_TEX.append(("TabEtrychPremissaCorpo", tabela_premissa(pr)))
+
     etas = [row["eta_minus"] for row in etrych.TABLE_III]
     extra = [r"\newcommand{\EtrychEtaMenor}{%.2f}" % min(etas),
              r"\newcommand{\EtrychEtaMaior}{%.2f}" % max(etas),
@@ -420,7 +613,47 @@ def main():
              r"\newcommand{\EtrychRamoAlcanceAlto}{%.2f}"
              % max(l["R_sobre_rvdw"] for l in rm),
              r"\newcommand{\EtrychPocoA}{%s}" % notacao(pc["a"]),
-             r"\newcommand{\EtrychPocoRzero}{%s}" % notacao(pc["r0"])]
+             r"\newcommand{\EtrychPocoRzero}{%s}" % notacao(pc["r0"]),
+             # the premise
+             r"\newcommand{\EtrychPremissaBaixo}{%s}" % notacao(pr["leque"][0][1]),
+             r"\newcommand{\EtrychPremissaMeio}{%s}" % notacao(pr["leque"][2][1]),
+             r"\newcommand{\EtrychPremissaAlto}{%s}" % notacao(pr["leque"][3][1]),
+             r"\newcommand{\EtrychPremissaKbaixo}{%.2f}" % pr["leque"][0][0],
+             r"\newcommand{\EtrychPremissaKmeio}{%.2f}" % pr["leque"][2][0],
+             r"\newcommand{\EtrychPremissaKalto}{%.2f}" % pr["leque"][3][0],
+             r"\newcommand{\EtrychPremissaPotencia}{%.3f}" % pr["potencia"],
+             r"\newcommand{\EtrychPremissaCoef}{%.3f}" % pr["coeficiente"],
+             r"\newcommand{\EtrychDimeroLeque}{%s}"
+             % notacao(pr["dimeros"][0][1]["espalhamento"]),
+             r"\newcommand{\EtrychDimeroRazao}{%.2f}" % pr["dimeros"][0][0],
+             r"\newcommand{\EtrychDimeroEnergia}{%s}"
+             % notacao(abs(pr["dimeros"][0][1]["E"][0])),
+             # the ladders
+             r"\newcommand{\EtrychEscadaPoco}{%s}" % esc["well"]["rotulo"],
+             r"\newcommand{\EtrychEscadaMpt}{%s}" % esc["mpt"]["rotulo"],
+             r"\newcommand{\EtrychEscadaErro}{%s}"
+             % notacao(max(esc[n]["erro"] for n in esc)),
+             r"\newcommand{\EtrychEscadaAtraso}{%s}" % notacao(esc["well"]["atraso"]),
+             # the positive side
+             r"\newcommand{\EtrychPositivasN}{%d}" % len(pos["linhas"]),
+             r"\newcommand{\EtrychPositivaA}{%s}"
+             % notacao(max(abs(l["a"] / l["a_p"] - 1.0) for l in pos["linhas"])),
+             r"\newcommand{\EtrychPositivaRzero}{%s}"
+             % notacao(max(abs(l["r0"] / l["r_eff"] - 1.0) for l in pos["linhas"])),
+             r"\newcommand{\EtrychLequePositivoBaixo}{%.1f\%%}"
+             % (100.0 * min(pos["leque"].values())),
+             r"\newcommand{\EtrychLequePositivoAlto}{%.1f\%%}"
+             % (100.0 * max(pos["leque"].values())),
+             r"\newcommand{\EtrychLequeMaisDezesseis}{%.1f\%%}" % (100.0 * lq[0.16]),
+             # how much the range moves between branches, by shape
+             r"\newcommand{\EtrychRamoPocoMove}{%.0f\%%}"
+             % (100.0 * alc["well"]["espalhamento"]),
+             r"\newcommand{\EtrychRamoOutrasMove}{%.1f}"
+             % max(1.0 + alc[n]["espalhamento"] for n in ("mpt", "gauss")),
+             # the honest error the tail treatment leaves
+             r"\newcommand{\EtrychCaudaResiduo}{%s}" % notacao(rc["residuo"]),
+             r"\newcommand{\EtrychCaudaResiduoLonge}{%s}"
+             % notacao(rc["residuo_longe"])]
     SAIDA_TEX.append((None, macros(tabela, deriva, forca, lq) + extra))
     escreve_tex()
 

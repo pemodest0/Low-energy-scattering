@@ -57,6 +57,35 @@ $|1,-1\rangle$ & 561.14 & 2.5 & 132 & $-810$ & $\pm$ & 30 & 800 & $\pm$ & 100 & 
 1 & 10.96193 & 136.2 & 2.11 & $-830.000$ & 136.000 \\
 2 & 30.70080 & 136.9 & 2.12 & $-830.000$ & 136.000 \\
 }
+
+\newcommand{\TabEtrychPositivasCorpo}{%
+402.74 & $900$ & \FormaWell & 1.41931 & 0.00686988 & $900.000$ & 136.000 & 1 \\
+ &  & \FormaMpt & 1.14123 & 0.0132514 & $900.000$ & 136.000 & 1 \\
+ &  & \FormaGauss & 1.53779 & 0.00967529 & $900.000$ & 136.000 & 1 \\
+ &  & \FormaLj & \ensuremath{1.4415 \times 10^{8}} & \ensuremath{2.15536 \times 10^{18}} & $900.000$ & 136.000 & 1 \\
+\addlinespace
+472.33 & $760$ & \FormaWell & 1.46565 & 0.00671824 & $760.000$ & 137.000 & 1 \\
+ &  & \FormaMpt & 1.17742 & 0.0128323 & $760.000$ & 137.000 & 1 \\
+ &  & \FormaGauss & 1.58728 & 0.00941416 & $760.000$ & 137.000 & 1 \\
+ &  & \FormaLj & \ensuremath{1.64632 \times 10^{8}} & \ensuremath{2.94087 \times 10^{18}} & $760.000$ & 137.000 & 1 \\
+\addlinespace
+33.5820 & $876$ & \FormaWell & 1.42387 & 0.00691033 & $876.000$ & 135.000 & 1 \\
+ &  & \FormaMpt & 1.14478 & 0.0133168 & $876.000$ & 135.000 & 1 \\
+ &  & \FormaGauss & 1.54265 & 0.00972749 & $876.000$ & 135.000 & 1 \\
+ &  & \FormaLj & \ensuremath{1.41421 \times 10^{8}} & \ensuremath{2.05044 \times 10^{18}} & $876.000$ & 135.000 & 1 \\
+\addlinespace
+561.14 & $800$ & \FormaWell & 1.44083 & 0.00702832 & $800.000$ & 132.000 & 1 \\
+ &  & \FormaMpt & 1.15798 & 0.013496 & $800.000$ & 132.000 & 1 \\
+ &  & \FormaGauss & 1.56074 & 0.00987546 & $800.000$ & 132.000 & 1 \\
+ &  & \FormaLj & \ensuremath{1.34306 \times 10^{8}} & \ensuremath{1.78806 \times 10^{18}} & $800.000$ & 132.000 & 1 \\
+}
+
+\newcommand{\TabEtrychPremissaCorpo}{%
+$0.01$ & \ensuremath{1.50011 \times 10^{-9}} \\
+$0.02$ & \ensuremath{1.52529 \times 10^{-8}} \\
+$0.05$ & \ensuremath{3.66004 \times 10^{-7}} \\
+$0.10$ & \ensuremath{4.26152 \times 10^{-6}} \\
+}
 \newcommand{\EtrychVunit}{1.2337005501}
 \newcommand{\EtrychVexato}{1.2337005501}
 \newcommand{\EtrychVerro}{\ensuremath{6.88338 \times 10^{-15}}}
@@ -64,6 +93,7 @@ $|1,-1\rangle$ & 561.14 & 2.5 & 132 & $-810$ & $\pm$ & 30 & 800 & $\pm$ & 100 & 
 \newcommand{\EtrychUnitRzero}{\ensuremath{4.68281 \times 10^{-11}}}
 \newcommand{\EtrychAlvoA}{\ensuremath{2.88303 \times 10^{-12}}}
 \newcommand{\EtrychAlvoRzero}{\ensuremath{1.01692 \times 10^{-8}}}
+\newcommand{\EtrychAlvoRazao}{-0.16}
 \newcommand{\EtrychAlvoBaixo}{-0.30}
 \newcommand{\EtrychAlvoAlto}{0.30}
 \newcommand{\EtrychLequeBorda}{6.5\%}
@@ -86,3 +116,28 @@ $|1,-1\rangle$ & 561.14 & 2.5 & 132 & $-810$ & $\pm$ & 30 & 800 & $\pm$ & 100 & 
 \newcommand{\EtrychRamoAlcanceAlto}{2.12}
 \newcommand{\EtrychPocoA}{\ensuremath{8.65952 \times 10^{-12}}}
 \newcommand{\EtrychPocoRzero}{\ensuremath{1.88058 \times 10^{-11}}}
+\newcommand{\EtrychPremissaBaixo}{\ensuremath{1.50011 \times 10^{-9}}}
+\newcommand{\EtrychPremissaMeio}{\ensuremath{3.66004 \times 10^{-7}}}
+\newcommand{\EtrychPremissaAlto}{\ensuremath{4.26152 \times 10^{-6}}}
+\newcommand{\EtrychPremissaKbaixo}{0.01}
+\newcommand{\EtrychPremissaKmeio}{0.05}
+\newcommand{\EtrychPremissaKalto}{0.10}
+\newcommand{\EtrychPremissaPotencia}{4.000}
+\newcommand{\EtrychPremissaCoef}{0.030}
+\newcommand{\EtrychDimeroLeque}{\ensuremath{1.73742 \times 10^{-5}}}
+\newcommand{\EtrychDimeroRazao}{0.06}
+\newcommand{\EtrychDimeroEnergia}{0.00191682}
+\newcommand{\EtrychEscadaPoco}{\ensuremath{(2n-1)^2}}
+\newcommand{\EtrychEscadaMpt}{\ensuremath{n(2n-1)}}
+\newcommand{\EtrychEscadaErro}{\ensuremath{5.04974 \times 10^{-12}}}
+\newcommand{\EtrychEscadaAtraso}{\ensuremath{8.11546 \times 10^{-4}}}
+\newcommand{\EtrychPositivasN}{16}
+\newcommand{\EtrychPositivaA}{\ensuremath{9.6656 \times 10^{-13}}}
+\newcommand{\EtrychPositivaRzero}{\ensuremath{1.14581 \times 10^{-8}}}
+\newcommand{\EtrychLequePositivoBaixo}{3.0\%}
+\newcommand{\EtrychLequePositivoAlto}{3.7\%}
+\newcommand{\EtrychLequeMaisDezesseis}{3.2\%}
+\newcommand{\EtrychRamoPocoMove}{7\%}
+\newcommand{\EtrychRamoOutrasMove}{2.1}
+\newcommand{\EtrychCaudaResiduo}{\ensuremath{6.1703 \times 10^{-7}}}
+\newcommand{\EtrychCaudaResiduoLonge}{\ensuremath{6.60148 \times 10^{-6}}}

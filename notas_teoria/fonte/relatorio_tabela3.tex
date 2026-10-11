@@ -73,15 +73,25 @@ potencial de dois corpos que reproduzem simultaneamente o alcance efetivo
 $r_{\rm eff}$ e o comprimento de espalhamento $a_-$ da feição de Efimov: duas
 equações a duas incógnitas por forma. Em seguida é construída a família que
 leva de $a_-$ através da ressonância até o lado positivo, em duas prescrições.
-A discordância entre as quatro formas no mesmo ponto --- \EtrychLequeAmenos{}
-em $r_0$ na faixa onde os $a_-$ se encontram --- mede a dependência de forma
-que um cálculo de três corpos herdaria da escolha do potencial, e é pequena
-comparada com o fator $1{,}3$ a $1{,}4$ que separa o $a_-$ medido da previsão
-de van der Waals. Registra-se que $a_-$ é observável de três corpos e entra
-como dado: constrói-se a \emph{entrada} de um cálculo de três corpos, não uma
-previsão de $a_-$. Um resultado colateral organiza o passo seguinte: $(a,r_0)$
-não determina o potencial, e os ramos que carregam dímeros profundos são
-distinguíveis pelo parâmetro de largura $\eta_-$ que a mesma tabela publica.
+A premissa de que tudo isso depende --- que uma colisão lenta guarda $a$ e
+$r_0$ e mais nada do potencial --- é \emph{medida} aqui, não suposta: as quatro
+formas, casadas nos dois números, concordam no deslocamento de fase em energia
+finita a \EtrychPremissaMeio{} em $k r_0=\EtrychPremissaKmeio{}$, e o primeiro
+termo que os dois números deixam de fora segue potência
+\EtrychPremissaPotencia{} com coeficiente \EtrychPremissaCoef{} --- é o
+parâmetro de forma, e não erro numérico. A energia do dímero concorda a
+\EtrychDimeroLeque{}. A discordância que sobra entre as formas no mesmo ponto
+--- \EtrychLequeAmenos{} em $r_0$ na faixa onde os $a_-$ se encontram --- mede
+a dependência de forma que um cálculo de três corpos herdaria da escolha do
+potencial, e é pequena comparada com o fator $1{,}3$ a $1{,}4$ que separa o
+$a_-$ medido da previsão de van der Waals. Registra-se que $a_-$ é observável
+de três corpos e entra como dado: constrói-se a \emph{entrada} de um cálculo de
+três corpos, não uma previsão de $a_-$. A mesma calibração é feita na feição do
+lado positivo, $a_p$, que o experimento reporta como a mais acessível das duas,
+e lá a dependência de forma é igualmente pequena. Um resultado colateral
+organiza o passo seguinte: $(a,r_0)$ não determina o potencial, e os ramos que
+carregam dímeros profundos são distinguíveis pelo parâmetro de largura
+$\eta_-$ que a mesma tabela publica.
 \end{abstract}
 
 \section{Objetivo}
@@ -138,7 +148,7 @@ do item (ii) são universais: uma família em $r_0=1$ serve para as cinco linhas
 O código está em \cod{lab.py} (dado $V(r)$, quanto valem $a$, $r_0$ e o número
 de estados), \cod{etrych.py} (dados $r_{\rm eff}$ e $a_-$, quais parâmetros os
 produzem), \cod{gerar.py} (as tabelas, as figuras e os dados deste relatório) e
-\cod{test\_lab.py} (trinta conferências). Nas listagens abaixo as linhas de
+\cod{test\_lab.py} (quarenta e sete conferências). Nas listagens abaixo as linhas de
 código são verbatim; trechos omitidos levam reticências e os comentários foram
 traduzidos.
 
@@ -300,6 +310,7 @@ mínimo. \cod{sweep\_c6\_alone} existe para medir a diferença em vez de
 afirmá-la.
 
 \section{Resultados}
+\label{sec:resultados}
 
 \begin{table}[htbp]
 \centering
@@ -349,6 +360,55 @@ $r_{\rm eff}$ & $a_-$ & forma & primeiro & segundo & $a$ & $r_0$ & estados \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{A feição do lado positivo}
+\label{sec:aplus}
+
+A Tabela~\ref{tab:iii} publica também $a_p$, a feição do lado $a>0$, para
+quatro das cinco linhas. Ela foi calibrada pela mesma prescrição, e a razão para
+fazê-lo é experimental: no lado positivo a feição de perda é a de átomo--dímero,
+e é reportada como a mais acessível e robusta das duas medidas. $a_-$ fica no
+lado de três átomos, onde o trímero cruza o contínuo.
+
+Do ponto de vista do código não há nada novo --- $r_0/a$ é o único número de que
+uma solução depende, e nada na máquina sabe de que lado da ressonância está. O
+que muda é a física em que ela aterra: $a>0$ carrega um dímero raso, de tamanho
+$\sim a$, que aparece na coluna de estados.
+
+\begin{table}[htbp]
+\centering
+\caption{Calibração em $a=a_p$ com $r_0=r_{\rm eff}$: \EtrychPositivasN{}
+combinações, em raios de Bohr. O pior desvio é \EtrychPositivaA{} em $a$ e
+\EtrychPositivaRzero{} em $r_0$ --- a mesma qualidade do lado negativo. A linha
+de $162{,}36$~G não publica $a_p$ e nada foi inventado para ela.}
+\label{tab:positivas}
+\small
+\begin{tabular}{rrlrrrrr}
+\toprule
+$B_{\rm res}$ (G) & $a_p$ & forma & primeiro & segundo & $a$ & $r_0$ & estados \\
+\midrule
+\TabEtrychPositivasCorpo
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{E vale a pena?} Só se o lado teórico não for pior condicionado lá,
+porque uma medida melhor entregue a uma calibração pior não adianta nada. Não é:
+a dependência de forma nos quatro pontos de $a_p$ fica entre
+\EtrychLequePositivoBaixo{} e \EtrychLequePositivoAlto{}, contra
+\EtrychLequeRaso{} a \EtrychLequeAmenos{} nos pontos de $a_-$. O par simétrico
+fecha a questão --- \EtrychLequeAmenos{} em $r_{\rm eff}/a=-0{,}16$ contra
+\EtrychLequeMaisDezesseis{} em $+0{,}16$: \textbf{a dependência de forma depende
+de $|r_{\rm eff}/a|$, não do sinal.} O lado do $a_p$ parece marginalmente pior
+apenas porque a linha de $472{,}33$~G tem $r_{\rm eff}/a_p$ um pouco maior em
+módulo que as demais.
+
+A conclusão prática é que, se o experimento mede $a_p$ melhor, o lado positivo é
+a comparação melhor nas duas pontas, e não um substituto de segunda. Uma
+ressalva de alcance experimental fica em aberto: qual das ressonâncias da
+Tabela~\ref{tab:iii} cabe no campo máximo do aparato é dado do laboratório e não
+foi confirmado aqui, de modo que nenhum teto de campo é afirmado neste
+relatório.
 
 \begin{table}[htbp]
 \centering
@@ -415,6 +475,81 @@ Verticais pontilhadas: cinzas os $a_-$, amarelas os $a_p$.}
 \label{fig:tudo}
 \end{figure}
 
+\section{A premissa, medida}
+\label{sec:premissa}
+
+Todo o resto deste relatório depende de uma única afirmação: que em energia
+baixa a colisão guarda $a$ e $r_0$ e mais nada do potencial. É por isso que
+calibrar duas formas diferentes nos mesmos dois números produz a mesma física,
+e é por isso que entregar $(a_-,r_{\rm eff})$ a um cálculo de três corpos faz
+sentido. A afirmação é padrão --- e, até aqui, era \emph{suposta}. Todo número
+deste trabalho é calculado em $E=0$, onde $a$ e $r_0$ são \emph{definidos};
+a premissa, porém, é uma afirmação sobre energia finita. Suposição e verificação
+não são a mesma coisa, então ela foi medida.
+
+\paragraph{Como.} As quatro formas são calibradas no ponto de $a_-$, de modo a
+compartilhar $a$ e $r_0$ exatamente, e então cada uma é integrada em
+$E=k^2/2$ --- o fator vem de $u''=2(V-E)u$, cujas soluções livres vão como
+$\sin(kr+\delta)$ com $k^2=2E$. Casando com essa forma no corte sai
+$k\cot\delta$, que a expansão de alcance efetivo prevê ser
+$-1/a+r_0k^2/2$. Cada forma carrega um deslocamento constante próprio, de
+origem numérica --- a fronteira interna está em raio finito e aqui o corte não é
+extrapolado --- e esse deslocamento não é física. Ele é removido tomando a
+diferença contra um $k$ de referência pequeno, e o termo de alcance efetivo é
+subtraído. \textbf{O que sobra é exatamente a colisão que $a$ e $r_0$ não
+determinam.}
+
+\begin{table}[htbp]
+\centering
+\caption{O que $(a,r_0)$ \emph{não} fixa: espalhamento de $k\cot\delta$ entre
+as quatro formas calibradas no mesmo $(a,r_0)$, no ponto de $a_-$. Comparar com
+o próprio $k\cot\delta$, que ali vale $-1/a=|\EtrychAlvoRazao{}|$. Em unidades
+de $r_0=1$.}
+\label{tab:premissa}
+\small
+\begin{tabular}{cc}
+\toprule
+$k\,r_0$ & espalhamento entre as quatro formas \\
+\midrule
+\TabEtrychPremissaCorpo
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{O resultado.} Quatro potenciais tão diferentes quanto um degrau
+quadrado, um poço $\mathrm{sech}^2$ suave, uma gaussiana e um Lennard-Jones com
+cauda de van der Waals --- casados apenas em dois números --- concordam no
+deslocamento de fase a \EtrychPremissaBaixo{} em
+$k r_0=\EtrychPremissaKbaixo{}$ e a \EtrychPremissaMeio{} em
+$k r_0=\EtrychPremissaKmeio{}$. A premissa se sustenta.
+
+E sustenta-se de um jeito informativo, não apenas aprovado. O que sobra
+\emph{não} é zero, e não deveria ser: a expansão continua, e o termo seguinte é
+o parâmetro de forma em $k^4$. Medido, o resíduo segue potência
+\textbf{\EtrychPremissaPotencia{}} com coeficiente \EtrychPremissaCoef{}. Uma
+potência de exatamente quatro é a assinatura do termo físico; um deslocamento
+de casamento mal feito não encolheria com $k$ de modo algum. Ou seja: não só a
+premissa vale, como o primeiro termo que ela ignora está identificado e
+quantificado.
+
+\paragraph{E no setor ligado.} A premissa costuma ser enunciada sobre colisões,
+mas o dímero é a outra metade dela. Do lado $a>0$ existe um estado ligado raso,
+e as quatro formas calibradas em $r_0/a=\EtrychDimeroRazao{}$ o põem na mesma
+energia a \EtrychDimeroLeque{} --- $\EtrychDimeroEnergia{}$ em unidades de
+$r_0=1$, igual em cinco casas nas quatro. Os estados ligados são contados aqui
+por um caminho que não olha $E=0$ em momento algum: varre-se $E<0$ procurando
+zeros do resíduo de casamento do estado ligado, o que não compartilha nada com
+a contagem de nós além do integrador. As duas contagens concordam nas quatro
+formas e em todos os ramos.
+
+\paragraph{Por que isso é a conclusão central.} A dependência de forma de
+\EtrychLequeAmenos{} medida na Seção~\ref{sec:resultados} diz quanto as formas
+discordam \emph{no} $r_0$. Esta seção diz algo mais forte: fixados $a$ e $r_0$,
+não sobra praticamente nada para discordar. As duas juntas é que fecham o
+argumento de que entregar $(a_-,r_{\rm eff})$ a três corpos é um procedimento
+bem posto --- a primeira limita o erro de entrada, a segunda mostra que não há
+um canal escondido pelo qual a forma volte a importar.
+
 \section{O ramo: quantos dímeros profundos o potencial carrega}
 \label{sec:ramos}
 
@@ -428,8 +563,11 @@ calibração tem, portanto, uma solução por ramo.
 \centering
 \caption{A mesma calibração --- $a_-=-830$, $r_{\rm eff}=136\,a_0$ --- em três
 ramos do poço quadrado. Os três são indistinguíveis em espalhamento de dois
-corpos de baixa energia e carregam zero, um e dois dímeros profundos. O alcance
-quase não muda; o que muda é a profundidade.}
+corpos de baixa energia e carregam zero, um e dois dímeros profundos. No poço
+quadrado o alcance quase não muda --- \EtrychRamoPocoMove{} entre os três
+ramos --- e o que muda é a profundidade. Isso é propriedade \emph{do poço}, e
+não do fenômeno: medido nas outras formas, o alcance varia por um fator de
+até \EtrychRamoOutrasMove{} entre os mesmos três ramos.}
 \label{tab:ramos}
 \small
 \begin{tabular}{crrrrr}
@@ -462,6 +600,32 @@ sozinha diria --- e um ramo com estados profundos é o candidato realista. Se um
 deles reproduzir $\eta_-\approx0{,}25$ a $0{,}3$, isso valida o potencial por
 um caminho independente do próprio $a_-$.
 
+\paragraph{Como o ramo é localizado.} A fronteira entre ramos é onde um novo
+estado liga, e há duas maneiras de perguntar isso que \emph{não} concordam. A
+contagem de estados ligados é uma escada não decrescente na profundidade ---
+aprofundar um potencial não desliga estado --- então cada degrau é o único
+cruzamento do teste ``contagem $\geq n$'', que a bisseção localiza e não pode
+pular, por estreita que a janela seja. Mas o degrau não é a fronteira física: a
+contagem só soma o nó que a reta assintótica contribui em $r=a$ depois que
+$|r_0/a|$ passa de um limiar, e portanto atrasa. Medido, o atraso é
+\EtrychEscadaAtraso{} na profundidade, o mesmo nas quatro fronteiras do poço
+quadrado --- artefato sistemático de limiar, não ruído.
+
+A fronteira física é o \emph{polo de $a$}, onde $1/a=0$ e o novo estado chega
+com energia de ligação exatamente nula. Nenhum limiar entra nela. Então o degrau
+serve só para encurralar, e a fronteira é o zero de $1/a$ dentro desse cerco.
+Isso é conferível, e não apenas convergente: para duas das quatro formas a
+escada de polos é analítica, $\EtrychEscadaPoco{}$ no poço quadrado e
+$\EtrychEscadaMpt{}$ no Pöschl--Teller, e a bisseção as reproduz a
+\EtrychEscadaErro{} relativo sem nada ajustado.
+
+Dentro de uma janela, $1/a$ corre monotonicamente de $0^+$ na borda de baixo a
+$0^-$ na de cima, o que só consegue fazer passando por infinito: $a$ cruza zero
+exatamente uma vez e $r_0$ diverge com ele, de modo que $r_0/a$ tem um polo
+dentro de cada janela. A janela é partida ali, e cada metade é varrida até a
+contagem de raízes repetir --- $r_0/a$ não é monótona ali, sobe, vira e cruza
+zero, e um alvo pode ser atingido mais de uma vez.
+
 \paragraph{Dois detalhes que a implementação expôs.} O primeiro: o ramo não
 determina o potencial sozinho. A busca encontra mais de uma solução dentro do
 mesmo ramo, com o mesmo $(a,r_0)$ e o mesmo número de estados, diferindo no
@@ -479,23 +643,29 @@ sinal.
 
 \section{Verificação}
 
-Trinta conferências automáticas, agrupadas por \emph{contra o que} comparam ---
-distinção que importa, porque conferir contra forma fechada não é conferir o
-integrador, e conferir o código contra ele mesmo não é conferir correção.
+Quarenta e sete conferências automáticas, agrupadas por \emph{contra o que}
+comparam --- distinção que importa, porque conferir contra forma fechada não é
+conferir o integrador, e conferir o código contra ele mesmo não é conferir
+correção.
 
 \begin{table}[htbp]
 \centering
 \caption{As conferências de \cod{test\_lab.py}, por natureza da âncora.}
 \small
-\begin{tabular}{lcl}
+\begin{tabular}{lc@{\quad}p{7.1cm}}
 \toprule
 grupo & n & âncora \\
 \midrule
-formas fechadas & 7 & $a$ e $r_0$ do poço, estado ligado, poço unitário, polos, família \\
-tabelas publicadas & 6 & hélio com quatro potenciais, contagem de nós, mínimos de Aziz, constantes \\
-segundo método & 3 & o Numerov, em dezesseis casos \\
-invariância e estrutura & 7 & escala, corte do caroço, fim da malha, sinal na unitariedade \\
-a própria entrega & 5 & alvos de calibração, extrapolação da cauda, os ramos \\
+formas fechadas & 9 & $a$, $r_0$ e estado ligado do poço, poço unitário,
+  família, as duas escadas de polos \\
+tabelas publicadas & 6 & hélio com quatro potenciais, contagem de nós, mínimos
+  de Aziz, constantes \\
+segundo método & 3 & o Numerov, e a contagem de autovalores contra a de nós \\
+invariância e estrutura & 9 & escala, corte do caroço, fim da malha, sinal e
+  limiar na unitariedade, simetria do leque \\
+a premissa & 4 & deslocamento de fase, as quatro formas em energia finita, a
+  energia do dímero \\
+a própria entrega & 14 & alvos nos dois lados, cauda, ramos, recusas \\
 o código contra si mesmo & 2 & convergência de malha, pino de regressão \\
 \bottomrule
 \end{tabular}
@@ -517,9 +687,19 @@ aquela diferença de números quase iguais sofre cancelamento, e refinar a malha
 $5{,}6\times10^{-3}$ com $128\,001$). Um método que piora quando refinado não
 consegue informar o próprio erro.
 
-O que limita este cálculo hoje não é mais o integrador, e sim a cauda de van
-der Waals de segunda ordem do Lennard-Jones, que a extrapolação remove apenas
-em primeira ordem; as outras três formas já concordam nos três cortes.
+O maior erro \emph{numérico} que resta não é mais o integrador, e sim a cauda
+de van der Waals de segunda ordem do Lennard-Jones, que a extrapolação remove
+apenas em primeira ordem; as outras três formas já concordam nos três cortes.
+O tamanho dele foi medido: extrapolar de $(R,3R)$ e de $(3R,9R)$ --- que não
+compartilham corte algum --- discorda em \EtrychCaudaResiduo{} relativo. Isso
+não é o que limita o resultado. A dependência de forma no ponto de $a_-$ é
+\EtrychLequeAmenos{}, mais de quatro ordens de grandeza acima, e é \emph{ela} o
+limitante. Por isso nenhuma correção analítica de cauda foi implementada:
+trocaria \EtrychCaudaResiduo{} por algo menor num cálculo cujo sinal é
+\EtrychLequeAmenos{}. Empurrar o corte para mais longe também não ajuda, e
+piora: de $(9R,27R)$ a discordância sobe para \EtrychCaudaResiduoLonge{},
+porque a reta assintótica cresce como $r$ e carrega o arredondamento
+acumulado.
 
 \section{Limitações}
 
