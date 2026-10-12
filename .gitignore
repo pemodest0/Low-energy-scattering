@@ -4,30 +4,34 @@ __pycache__/
 venv/
 .pytest_cache/
 .ipynb_checkpoints/
-# lixo de compilacao do LaTeX
+# LaTeX build artefacts
 *.aux
 *.fdb_latexmk
 *.fls
 *.log
 *.out
 *.tmp
-# sistema
+# operating system
 .DS_Store
 Thumbs.db
 desktop.ini
-# reparo do git
+# git repair
 .git_quebrado/
 
-# pasta de coisas aposentadas: fica so na maquina local
+# retired material: stays on the local machine only
 arquivo/
 
-# paper: o PDF e os intermediarios sao gerados, nao versionados
+# the generator's disk cache
 .cache_gerar
 
-# resultados: saida gerada por gerar.py, vai por e-mail, nao versionada
+# generated output: written by gerar.py, not versioned
 resultados/
 
-# PDF compilado dentro de fonte/: o de notas_teoria/ e o que vale, e o
-# relatorio sai por e-mail e nao entra no repo. figures/ nao e afetado.
+# PDFs built inside fonte/: the one at notas_teoria/ is the published copy,
+# and the Portuguese write-up leaves by e-mail. figures/ is not affected.
 notas_teoria/fonte/*.pdf
 notas_teoria/fonte/*.toc
+
+# the Portuguese write-up for the advisor: leaves by e-mail, never versioned.
+# Everything in this repository is in English.
+notas_teoria/fonte/relatorio_tabela3.tex
