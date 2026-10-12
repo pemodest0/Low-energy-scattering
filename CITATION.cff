@@ -2,12 +2,29 @@ cff-version: 1.2.0
 title: "Low-energy scattering numerical laboratory"
 message: "If you use this software, please cite it as below."
 type: software
+abstract: >-
+  Numerical laboratory for cold atoms at low energy. Two-body universality from
+  the scattering length and the effective range, checked against closed forms
+  and published tables; and the harmonic trap that holds the atoms, including
+  the design calculation for an accordion optical lattice and the conditions
+  for a two-dimensional gas.
+keywords:
+  - cold atoms
+  - low-energy scattering
+  - scattering length
+  - effective range
+  - Bose-Einstein condensate
+  - harmonic trap
+  - optical lattice
+  - two-dimensional gas
+license: MIT
 authors:
   - family-names: "Gesualdo Modesto"
     given-names: "Pedro Henrique"
     affiliation: "Sao Carlos Institute of Physics (IFSC), University of Sao Paulo"
 year: 2026
 url: "https://github.com/pemodest0/Low-energy-scattering"
+repository-code: "https://github.com/pemodest0/Low-energy-scattering"
 references:
   - type: article
     title: "Scattering length and effective range of microscopic two-body potentials"
@@ -20,3 +37,37 @@ references:
     volume: 45
     year: 2023
     doi: "10.1590/1806-9126-RBEF-2023-0079"
+  - type: article
+    title: "Bound state properties of the helium dimer"
+    authors:
+      - family-names: "Motovilov"
+        given-names: "A. K."
+      - family-names: "Sandhas"
+        given-names: "W."
+      - family-names: "Sofianos"
+        given-names: "S. A."
+      - family-names: "Kolganova"
+        given-names: "E. A."
+    journal: "The European Physical Journal D"
+    volume: 13
+    start: 33
+    year: 2001
+  - type: article
+    title: "Collective excitations of a trapped Bose-condensed gas"
+    authors:
+      - family-names: "Stringari"
+        given-names: "S."
+    journal: "Physical Review Letters"
+    volume: 77
+    start: 2360
+    year: 1996
+    url: "https://arxiv.org/abs/cond-mat/9603126"
+  - type: article
+    title: "Finite size effects on the collective oscillations of a trapped Bose gas"
+    authors:
+      - family-names: "Zambelli"
+        given-names: "F."
+      - family-names: "Stringari"
+        given-names: "S."
+    year: 2001
+    url: "https://arxiv.org/abs/cond-mat/0107464"

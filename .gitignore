@@ -4,21 +4,21 @@ __pycache__/
 venv/
 .pytest_cache/
 .ipynb_checkpoints/
-# lixo de compilacao do LaTeX
+# LaTeX build leftovers
 *.aux
 *.fdb_latexmk
 *.fls
 *.log
 *.out
 *.tmp
-# sistema
+# operating system
 .DS_Store
 Thumbs.db
 desktop.ini
-# reparo do git
+# git repair
 .git_quebrado/
 
-# pasta de coisas aposentadas: fica so na maquina local
+# retired material: stays on the local machine only
 arquivo/
 
-# paper: o PDF e os intermediarios sao gerados, nao versionados
+# paper: the PDF and the intermediates are generated, not versioned

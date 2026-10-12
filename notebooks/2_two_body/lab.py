@@ -1,7 +1,7 @@
 """Two-body low-energy scattering: potentials, solver, tabulated data.
 
 Reasoning, derivations and the measurements behind every constant are in
-notas_teoria/Theory_and_Implementation.pdf. This file is the implementation.
+theory_notes/Theory_and_Implementation.pdf. This file is the implementation.
 
     UNITS         The solver fixes no length unit. It carries whatever unit the
                   potential's parameters use: fm for the model potentials,
