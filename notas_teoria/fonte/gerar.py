@@ -81,13 +81,30 @@ def memo(nome, funcao):
 
 
 def notacao(x):
-    """A number for LaTeX: plain if it reads well, scientific if it does not."""
+    """A number for LaTeX: plain if it reads well, scientific if it does not.
+
+    Full precision on purpose: this also formats the Lennard-Jones C6 and C12,
+    which are PARAMETERS and not error estimates -- anyone redoing the
+    calibration needs every digit. Quantities that are error estimates, where
+    six digits would claim a precision they do not have, go through
+    notacao_erro instead.
+    """
     if x == 0.0:
         return "0"
     e = math.floor(math.log10(abs(x)))
     if -4 < e < 6:
         return "%g" % x
     return r"\ensuremath{%g \times 10^{%d}}" % (x / 10.0 ** e, e)
+
+
+def notacao_erro(x):
+    """Same, with two significant figures. For spreads, residuals, deviations."""
+    if x == 0.0:
+        return "0"
+    e = math.floor(math.log10(abs(x)))
+    if -4 < e < 6:
+        return "%.2g" % x
+    return r"\ensuremath{%.2g \times 10^{%d}}" % (x / 10.0 ** e, e)
 
 
 # =============================================================================
@@ -204,20 +221,23 @@ def premissa():
     # keys: a fresh run would hand back float keys and a cached run strings,
     # so the formatters below would work once and crash on the second run.
     pots = [lab.POTENTIALS[n](*etrych.at_ratio(n, -0.16)) for n in FORMAS]
-    leque = [[k, lab.shape_dependence_at_energy(pots, k)]
-             for k in (0.01, 0.02, 0.05, 0.10)]
 
-    # the leftover of one shape, and the power it follows: if it were an
-    # artefact of the matching it would not shrink with k at all
-    pot = lab.Well(*etrych.at_ratio("well", -0.16))
-    a, r0, nodes = lab.scattering(pot)
-    base = lab.k_cot_delta(pot, 1e-3)
-    sobras = []
-    for k in (0.01, 0.02, 0.05):
-        medido = lab.k_cot_delta(pot, k) - base
-        sobras.append([k, abs(medido - 0.5 * r0 * (k * k - 1e-6))])
-    potencia = math.log(sobras[-1][1] / sobras[0][1]) / math.log(5.0)
-    coef = sobras[-1][1] / sobras[-1][0] ** 4
+    # One line per shape: the dimensionless k^4 coefficient, and the power the
+    # leftover actually follows. The earlier version of this reported instead
+    # the spread of k cot(delta) at a few k, which was wrong twice -- it has
+    # dimensions of 1/length, so its size meant nothing without naming the
+    # unit, and it was absolute where the useful statement is relative.
+    formas = []
+    for n, pot in zip(FORMAS, pots):
+        formas.append([n, {"P": lab.shape_parameter(pot),
+                           "potencia": lab.residual_power(pot)}])
+    espalha, relativa, n_curtas = lab.shape_disagreement(pots)
+
+    # the well's coefficient in closed form, which makes the measured one
+    # checkable rather than fitted
+    v, mu = etrych.at_ratio("well", -0.16)
+    a, r0, nodes = lab.scattering(lab.Well(v, mu))
+    fechada = lab.shape_well(v, 1.0 / mu) / r0 ** 3
 
     # and the bound sector: the shallow dimer, where a > 0 puts one
     dimeros = []
@@ -233,8 +253,101 @@ def premissa():
         dimeros.append([alvo, {"E": Es,
                                "espalhamento": max(fundo) / min(fundo) - 1.0}])
 
-    return {"leque": leque, "potencia": potencia, "coeficiente": coef,
-            "sobras": sobras, "dimeros": dimeros}
+    return {"formas": formas, "espalhamento": espalha, "relativa": relativa,
+            "curtas": n_curtas, "fechada": fechada, "dimeros": dimeros}
+
+
+def campo():
+    """r_eff predicted from C6 and s_res alone, and the potential vs field.
+
+    Table III's r_eff looked like an input that only the authors' own
+    coupled-channel calculation could supply, which is what made p1(B), p2(B)
+    look impossible without inventing the values in between. It is not an
+    input: Eqs. (31), (34) and (35) of Chin et al. give it from the van der
+    Waals length and s_res, with R* = abar/s_res following from their own
+    definitions. Nothing from Table III enters the prediction, so the five
+    published r_eff are a genuine test of it.
+
+    Also returns one shape's parameters across a field range, as the
+    demonstration that the calibration machinery runs on a(B) unchanged.
+    """
+    previsoes = []
+    for row in etrych.TABLE_III:
+        p = etrych.effective_range(row["s_res"])
+        previsoes.append([row["B_txt"], {
+            "s_res": row["s_res"], "pub": row["r_eff"], "previsto": p,
+            "erro": (p - row["r_eff"]) / row["r_eff"],
+            # the s_res the published r_eff implies, read backwards
+            "s_implicado": 2.0 * etrych.abar()
+            / (etrych.COEF_ALCANCE * etrych.abar() - row["r_eff"])}])
+
+    demo = etrych.TABLE_III[0]
+    a_bg, delta, fonte = etrych.feshbach(demo)
+    campos = [demo["B_res"] + d for d in (0.75, 1.0, 1.5, 1.911, 2.5)]
+    curva = etrych.potential_vs_field("well", demo, campos)
+    for r in curva:
+        r["dB"] = r["B"] - demo["B_res"]
+
+    # and what the same closed form says at the feature, where a is finite and
+    # not infinite. NOT validated -- only the a -> infinity limit was checked.
+    feicao = []
+    for row in etrych.TABLE_III:
+        na_res = etrych.effective_range(row["s_res"])
+        feicao.append([row["B_txt"], {
+            "a_minus": row["a_minus"],
+            "r_menos": etrych.effective_range(row["s_res"], row["a_minus"]),
+            "razao_menos": etrych.effective_range(row["s_res"], row["a_minus"])
+            / na_res - 1.0}])
+
+    # where the Efimov feature sits, now that the sign of Delta is settled
+    feicoes_B = []
+    for row in etrych.TABLE_III:
+        ab, dl, fo = etrych.feshbach(row)
+        feicoes_B.append([row["B_txt"], {
+            "a_bg": ab, "delta": dl, "fonte": fo,
+            "dB": dl / (1.0 - row["a_minus"] / ab)}])
+
+    return {"previsoes": previsoes, "curva": curva, "feicao": feicao,
+            "abar": etrych.abar(), "coef": etrych.COEF_ALCANCE,
+            "B_demo": demo["B_txt"], "a_bg": a_bg, "delta": delta,
+            "B0": demo["B_res"], "feicoes_B": feicoes_B}
+
+
+def incertezas():
+    """Recalibrate at a_- +- delta a_-, with r_eff held, and report the spread.
+
+    The numbers of this report have no error bars because they are not
+    measurements: they are the solution of a deterministic problem. The INPUTS
+    have error bars, and Table III publishes one for a_-, from 1.3% on the
+    33.5820 G row to 9% on the 162.36 G row.
+
+    What is held fixed has to be stated, because the answer depends on it. Here
+    r_eff is held and a_- varied, for two reasons: it is the only one of the
+    two with a published uncertainty, and varying a_- at fixed r_eff moves the
+    ratio r0/a, which is the one number a shape responds to -- so each sample
+    is an honest re-solve and not a rescaling of the same solution.
+
+    r_eff carries no published uncertainty. It is NOT therefore treated as
+    exact: it is left unpropagated and said to be so.
+    """
+    fora = []
+    for row in etrych.TABLE_III:
+        a0, da = row["a_minus"], row["a_minus_err"]
+        linha = {"B": row["B_txt"], "a": a0, "da": da,
+                 "rel_a": da / abs(a0), "formas": []}
+        for nome in FORMAS:
+            trio = []
+            for a in (a0 - da, a0, a0 + da):
+                p1, p2 = etrych.at_ratio(nome, row["r_eff"] / a)
+                p1, p2 = etrych.rescale(nome, p1, p2, row["r_eff"])
+                trio.append((p1, p2))
+            # the half-spread of each parameter, relative to the central value
+            d1 = 0.5 * abs(trio[2][0] - trio[0][0]) / abs(trio[1][0])
+            d2 = 0.5 * abs(trio[2][1] - trio[0][1]) / abs(trio[1][1])
+            linha["formas"].append([nome, {"p1": trio[1][0], "p2": trio[1][1],
+                                           "rel_p1": d1, "rel_p2": d2}])
+        fora.append(linha)
+    return fora
 
 
 def escadas():
@@ -322,8 +435,53 @@ def tabela_positivas(pos):
 
 
 def tabela_premissa(pr):
-    """The part of the collision (a, r0) does not fix, against k r0."""
-    return ["$%.2f$ & %s \\\\" % (k, notacao(v)) for k, v in pr["leque"]]
+    """The part of the collision (a, r0) does not fix, shape by shape.
+
+    One row per shape: the dimensionless k^4 coefficient and the power the
+    leftover actually follows. The power is a column and not a footnote
+    because for the Lennard-Jones it is not 4, and a table of quartic
+    coefficients that quietly includes one that is not quartic would be worse
+    than no table.
+    """
+    linhas = []
+    for nome, d in pr["formas"]:
+        # a quartic coefficient is only printed where the leftover IS quartic;
+        # elsewhere the column would be a number for a quantity that does not
+        # exist, which the power column exists precisely to flag
+        tem_p = abs(d["potencia"] - 4.0) < 0.05
+        celula = ("$%.4f$" % d["P"]) if tem_p else "---"
+        linhas.append("%s & %s & $%.2f$ \\\\"
+                      % (NOME[nome], celula, d["potencia"]))
+    return linhas
+
+
+def tabela_incertezas(inc):
+    """How delta a_- propagates into the two parameters, row by shape."""
+    linhas = []
+    for L in inc:
+        cels = " & ".join("$%.2f$ & $%.2f$" % (100.0 * d["rel_p1"],
+                                               100.0 * d["rel_p2"])
+                          for nome, d in L["formas"])
+        linhas.append("$%s$ & $%.1f$ & %s \\\\" % (L["B"], 100.0 * L["rel_a"],
+                                                   cels))
+    return linhas
+
+
+def tabela_campo(cp):
+    """r_eff published against r_eff predicted from C6 and s_res."""
+    linhas = []
+    for B, d in cp["previsoes"]:
+        linhas.append("$%s$ & $%.1f$ & $%d$ & $%.1f$ & $%+.1f$ & $%.2f$ \\\\"
+                      % (B, d["s_res"], d["pub"], d["previsto"],
+                         100.0 * d["erro"], d["s_implicado"]))
+    return linhas
+
+
+def tabela_curva(cp):
+    """p1 and p2 across a field range, for one shape and one resonance."""
+    return ["$%.3f$ & $%+.2f$ & $%.0f$ & $%.1f$ & $%.4f$ & $%.5f$ \\\\"
+            % (r["B"], r["dB"], r["a"], r["r_eff"], r["p1"], r["p2"])
+            for r in cp["curva"]]
 
 
 def cauda():
@@ -656,6 +814,11 @@ def main():
     rc = memo("residuo_cauda", residuo_da_cauda)
     SAIDA_TEX.append(("TabEtrychPositivasCorpo", tabela_positivas(pos)))
     SAIDA_TEX.append(("TabEtrychPremissaCorpo", tabela_premissa(pr)))
+    cp = memo("campo", campo)
+    SAIDA_TEX.append(("TabEtrychCampoCorpo", tabela_campo(cp)))
+    SAIDA_TEX.append(("TabEtrychCurvaCorpo", tabela_curva(cp)))
+    inc = memo("incertezas", incertezas)
+    SAIDA_TEX.append(("TabEtrychIncertezasCorpo", tabela_incertezas(inc)))
 
     etas = [row["eta_minus"] for row in etrych.TABLE_III]
     extra = [r"\newcommand{\EtrychEtaMenor}{%.2f}" % min(etas),
@@ -667,14 +830,43 @@ def main():
              r"\newcommand{\EtrychPocoA}{%s}" % notacao(pc["a"]),
              r"\newcommand{\EtrychPocoRzero}{%s}" % notacao(pc["r0"]),
              # the premise
-             r"\newcommand{\EtrychPremissaBaixo}{%s}" % notacao(pr["leque"][0][1]),
-             r"\newcommand{\EtrychPremissaMeio}{%s}" % notacao(pr["leque"][2][1]),
-             r"\newcommand{\EtrychPremissaAlto}{%s}" % notacao(pr["leque"][3][1]),
-             r"\newcommand{\EtrychPremissaKbaixo}{%.2f}" % pr["leque"][0][0],
-             r"\newcommand{\EtrychPremissaKmeio}{%.2f}" % pr["leque"][2][0],
-             r"\newcommand{\EtrychPremissaKalto}{%.2f}" % pr["leque"][3][0],
-             r"\newcommand{\EtrychPremissaPotencia}{%.3f}" % pr["potencia"],
-             r"\newcommand{\EtrychPremissaCoef}{%.3f}" % pr["coeficiente"],
+             r"\newcommand{\EtrychPremissaEspalha}{%.3f}" % pr["espalhamento"],
+             r"\newcommand{\EtrychPremissaRelativa}{%s}" % notacao_erro(pr["relativa"]),
+             r"\newcommand{\EtrychPremissaFechada}{%.6f}" % pr["fechada"],
+             r"\newcommand{\EtrychPremissaPoco}{%.6f}"
+             % dict(pr["formas"])["well"]["P"],
+             r"\newcommand{\EtrychPremissaLJ}{%.2f}"
+             % dict(pr["formas"])["lj"]["potencia"],
+             # the field
+             r"\newcommand{\EtrychAbar}{%.1f}" % cp["abar"],
+             r"\newcommand{\EtrychCoefAlcance}{%.4f}" % cp["coef"],
+             r"\newcommand{\EtrychCampoAberto}{%.1f}"
+             % (cp["coef"] * cp["abar"]),
+             r"\newcommand{\EtrychCampoPior}{%.1f}"
+             % (100.0 * max(abs(d["erro"]) for B, d in cp["previsoes"]
+                            if B != "162.36")),
+             r"\newcommand{\EtrychCampoFora}{%.0f}"
+             % (100.0 * abs(dict(cp["previsoes"])["162.36"]["erro"])),
+             r"\newcommand{\EtrychCampoForaS}{%.2f}"
+             % dict(cp["previsoes"])["162.36"]["s_implicado"],
+             r"\newcommand{\EtrychCampoDemo}{%s}" % cp["B_demo"],
+             r"\newcommand{\EtrychCampoAbg}{%.1f}" % cp["a_bg"],
+             r"\newcommand{\EtrychCampoDelta}{%.1f}" % cp["delta"],
+             # the propagation
+             r"\newcommand{\EtrychIncAmaior}{%.1f}"
+             % (100.0 * max(L["rel_a"] for L in inc)),
+             r"\newcommand{\EtrychIncAmenor}{%.1f}"
+             % (100.0 * min(L["rel_a"] for L in inc)),
+             r"\newcommand{\EtrychIncPocoMaior}{%.2f}"
+             % (100.0 * max(dict(L["formas"])["well"]["rel_p1"] for L in inc)),
+             r"\newcommand{\EtrychIncLjMaior}{%.1f}"
+             % (100.0 * max(dict(L["formas"])["lj"]["rel_p2"] for L in inc)),
+             r"\newcommand{\EtrychFeicaoMenor}{%.0f}"
+             % (100.0 * min(d["razao_menos"] for B, d in cp["feicao"]
+                            if B != "162.36")),
+             r"\newcommand{\EtrychFeicaoMaior}{%.0f}"
+             % (100.0 * max(d["razao_menos"] for B, d in cp["feicao"]
+                            if B != "162.36")),
              r"\newcommand{\EtrychDimeroLeque}{%s}"
              % notacao(pr["dimeros"][0][1]["espalhamento"]),
              r"\newcommand{\EtrychDimeroRazao}{%.2f}" % pr["dimeros"][0][0],
