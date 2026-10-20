@@ -505,23 +505,108 @@ def count_bound_states(pot, pontos=300, topo=1e-11):
     return len(energias), sorted(energias)
 
 
-def shape_dependence_at_energy(pots, k, k0=1e-3):
-    """How much k cot(delta) differs between potentials sharing (a, r0).
+def _sobra_k4(pot, k, k0=1e-3):
+    """What is left of k cot(delta) once -1/a and the r0 term are removed.
 
     Each potential carries its own constant offset -- the inner boundary sits
     at a finite radius and the cut is not extrapolated here -- and that offset
     says nothing about the physics. Differencing against a small reference k
     removes it, and subtracting r0 (k^2 - k0^2) / 2 removes the part the
-    effective-range expansion already accounts for. What is left is exactly the
-    collision that a and r0 do NOT fix, which is the error a three-body
-    calculation inherits from the choice of shape.
+    effective-range expansion already accounts for. Dimensions of 1/length, so
+    nothing is reported in this form; see shape_parameter.
     """
-    sobra = []
-    for pot in pots:
-        a, r0, nodes = scattering(pot)
-        base = k_cot_delta(pot, k0)
-        sobra.append(k_cot_delta(pot, k) - base - 0.5 * r0 * (k * k - k0 * k0))
-    return max(sobra) - min(sobra)
+    a, r0, nodes = scattering(pot)
+    base = k_cot_delta(pot, k0)
+    return k_cot_delta(pot, k) - base - 0.5 * r0 * (k * k - k0 * k0), r0
+
+
+def shape_parameter(pot, k=0.05):
+    """The dimensionless k^4 coefficient of k cot(delta), in units of r0.
+
+        k cot(delta) = -1/a + r0 k^2 / 2 + P r0^3 k^4 + O(k^6)
+
+    P is what (a, r0) leaves undetermined. It is dimensionless, so it does not
+    depend on the length unit the potential happens to carry, and it carries no
+    k, so it is not a statement about one energy.
+
+    Read at a single k the answer is still P + O(k^2), contaminated by the k^6
+    term at the 1e-4 level. Two k's a factor of two apart remove that term the
+    same way the tail extrapolation removes the cut, and the result then agrees
+    with shape_well to 1e-9 rather than 1e-4.
+
+    An earlier version of this file reported instead the spread of k cot(delta)
+    itself between shapes, at one k. That number has dimensions of 1/length, so
+    its size means nothing until the unit is named, and it is an absolute
+    difference where the meaningful comparison is relative. P fixes both.
+    """
+    alto, r0 = _sobra_k4(pot, k)
+    baixo, r0 = _sobra_k4(pot, 0.5 * k)
+    P_alto = alto / k ** 4 / r0 ** 3
+    P_baixo = baixo / (0.5 * k) ** 4 / r0 ** 3
+    return (4.0 * P_baixo - P_alto) / 3.0
+
+
+def residual_power(pot, ks=(0.025, 0.05, 0.10)):
+    """The power of k the leftover beyond (a, r0) actually follows.
+
+    Reporting a k^4 coefficient presumes the leftover IS k^4. For a potential
+    whose tail dies fast that holds -- the well, the Poschl-Teller and the
+    Gaussian all measure 4.000 here. The Lennard-Jones does not: it measures
+    near 3, and two checks say that is the potential and not the method.
+    Pushing the matching cut from 9R to 100R does not move the residual in the
+    fifth digit. And replacing the tail-extrapolated r0 by the r0 measured at
+    the SAME cut the phase shift uses -- the inconsistency that would
+    manufacture a spurious k^2 term, since scattering() extrapolates the cut
+    away and k_cot_delta does not -- changes the residual in the third digit
+    and leaves the exponent alone.
+
+    This is a known effect, not an anomaly of this code. For a van der Waals
+    tail the effective-range expansion stops being analytic in k^2, and the
+    leading non-analytic term in the s wave goes as k^3: Elhatisari, Koenig,
+    Lee & Hammer, Phys. Rev. A 87, 052705 (2013), Sec. VI, which states that a
+    and r0 stay well defined while the shape parameters do not. See also
+    Hammer & Lee, Ann. Phys. 325, 2212 (2010), Eq. (99).
+
+    Measured here the cubic coefficient is about -1.1e-3 in units of r0 = 1,
+    with the quartic term of opposite sign, which is what makes the effective
+    exponent sit between 3 and 4 and drift downwards with k. No closed form for
+    that coefficient is asserted: the published expression involves the
+    short-range K matrix and not a and the van der Waals length alone.
+
+    What the number establishes is that a single quartic coefficient is the
+    wrong descriptor for that shape -- and real potassium has such a tail.
+    """
+    sobras = [abs(_sobra_k4(pot, k)[0]) for k in ks]
+    potencias = [math.log(sobras[i + 1] / sobras[i]) / math.log(ks[i + 1] / ks[i])
+                 for i in range(len(ks) - 1)]
+    return sum(potencias) / len(potencias)
+
+
+def shape_disagreement(pots, k=0.05):
+    """How far apart potentials sharing (a, r0) are beyond those two numbers.
+
+    This -- not the spread of r0 -- is the shape dependence. The spread of r0
+    measures how well the calibration matched its target, and goes to zero as
+    the calibration improves; the shape dependence is what survives after a and
+    r0 agree.
+
+    Two numbers, because one does not cover all four shapes. The spread of the
+    shape parameter P is reported ONLY over the shapes that have one: a quartic
+    coefficient presumes a quartic leftover, and a van der Waals tail does not
+    have one (see residual_power). Membership is decided by measurement, not by
+    name. The second number makes no such assumption -- it is the spread of the
+    leftover itself at the quoted k, divided by what the effective-range
+    expansion predicts for k cot(delta) there, so it is relative, dimensionless
+    and defined for every shape.
+    """
+    curtas = [p for p in pots if abs(residual_power(p) - 4.0) < 0.05]
+    Ps = [shape_parameter(p, k) for p in curtas]
+    espalha = max(Ps) - min(Ps) if len(Ps) > 1 else 0.0
+
+    sobras = [_sobra_k4(p, k)[0] for p in pots]
+    a, r0, nodes = scattering(pots[0])
+    previsto = abs(-1.0 / a + 0.5 * r0 * k * k)
+    return espalha, (max(sobras) - min(sobras)) / previsto, len(curtas)
 
 
 def _extrapolado(pot, fator=3.0):
@@ -760,6 +845,30 @@ def r0_well(v, R=1.0):
     wave_part = (1.0 - R / a) ** 2 / math.sin(k * R) ** 2 \
         * (R / 2.0 - math.sin(2.0 * k * R) / (4.0 * k))
     return 2.0 * (line_part - wave_part)
+
+
+def shape_well(v, R=1.0):
+    """The k^4 coefficient of k cot(delta) for the square well, closed form.
+
+    With x = sqrt(2v), the same variable a_well and r0_well use. Inside the
+    well u = sin(Kr) with K^2 = 2v/R^2 + k^2; matching u'/u onto
+    k cot(kr + delta) at R and expanding in k gives, after -1/a and r0/2, the
+    coefficient below. Derived at R = 1 and restored by scale invariance, which
+    gives the coefficient of k^(2n) a factor R^(2n-1).
+
+    This is the first number that (a, r0) does NOT fix: two shapes matched on
+    both still differ here, and the difference is what a three-body calculation
+    inherits from the choice of shape. Having it in closed form for one shape
+    turns the measured value into something checkable rather than fitted.
+    """
+    x = math.sqrt(2.0 * v)
+    t = math.tan(x)
+    d = x - t
+    num = (8.0 * x ** 6 - 48.0 * x ** 5 * t + 60.0 * x ** 4 * t ** 2
+           - 60.0 * x ** 4 - 30.0 * x ** 3 * t ** 3 + 150.0 * x ** 3 * t
+           - 135.0 * x ** 2 * t ** 2 + 45.0 * x ** 2 + 45.0 * x * t ** 3
+           - 90.0 * x * t + 45.0 * t ** 2)
+    return R ** 3 * num / (360.0 * x ** 3 * d ** 3)
 
 
 def E_zero_range(a, h2_2mu):

@@ -890,15 +890,28 @@ def test_four_shapes_sharing_a_and_r0_scatter_alike_at_finite_energy():
     exactly -- the expansion has further terms, and the Lennard-Jones tail
     contributes a non-analytic k^3 among them -- so what matters is the size.
 
-    Measured at the a_- point: the four spread by 1.7e-8 at k r0 = 0.01,
-    2.3e-6 at 0.05 and 2.7e-5 at 0.1, against a shape dependence in r0 of
-    3.3e-2 and a three-body effect of order unity. The tolerances sit about
-    twenty times above those.
+    The size is stated as the spread of the dimensionless shape parameter, and
+    as that spread relative to what the expansion itself predicts at the same
+    k. The earlier version of this check asserted a bound on the spread of
+    k cot(delta) directly: a quantity with dimensions of 1/length, so the
+    bound was really a statement about the unit the potential happened to
+    carry, and an absolute difference where the useful one is relative.
+
+    Measured at the a_- point: the three shapes that HAVE a shape parameter
+    give 0.0301, 0.0009 and 0.0171, spreading by 0.029; and all four together
+    differ by 2.3e-6 of what the expansion predicts for k cot(delta) at
+    k r0 = 0.05. Against a three-body effect of order unity.
+
+    The Lennard-Jones is excluded from the first number and not from the
+    second, decided by measurement rather than by name: shape_disagreement
+    reads membership off residual_power and reports how many qualified.
     """
     pots = [lab.POTENTIALS[nome](*etrych.at_ratio(nome, -0.16))
             for nome in ("well", "mpt", "gauss", "lj")]
-    for k, teto in ((0.01, 5e-7), (0.05, 5e-5), (0.10, 5e-4)):
-        assert lab.shape_dependence_at_energy(pots, k) < teto, k
+    espalha, relativa, curtas = lab.shape_disagreement(pots)
+    assert curtas == 3, curtas
+    assert espalha < 0.1, espalha
+    assert relativa < 1e-5, relativa
 
 
 def test_the_dimer_energy_is_universal_across_the_shapes():
@@ -988,11 +1001,11 @@ def test_the_residual_at_finite_energy_grows_with_energy():
     expansion was truncated. Required to fall by at least a factor of ten when
     k is halved twice, which a k^3 or k^4 term does and an offset does not.
     """
-    pots = [lab.POTENTIALS[nome](*etrych.at_ratio(nome, -0.16))
-            for nome in ("well", "mpt", "gauss", "lj")]
-    alto = lab.shape_dependence_at_energy(pots, 0.08)
-    baixo = lab.shape_dependence_at_energy(pots, 0.02)
-    assert alto / baixo > 10.0, (alto, baixo)
+    for nome in ("well", "mpt", "gauss", "lj"):
+        pot = lab.POTENTIALS[nome](*etrych.at_ratio(nome, -0.16))
+        alto = abs(lab._sobra_k4(pot, 0.08)[0])
+        baixo = abs(lab._sobra_k4(pot, 0.02)[0])
+        assert alto / baixo > 10.0, (nome, alto, baixo)
 
 
 # =============================================================================
