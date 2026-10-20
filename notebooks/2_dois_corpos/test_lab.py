@@ -189,8 +189,16 @@ def test_helium_benchmark_four_potentials():
     HFD-B is given a looser tolerance on a. Its ENERGY reproduces to six
     figures, which means the physics agrees, but a comes out at 88.60 against
     their 88.50. The other three agree on both to five figures with the same
-    code, so this is specific to that row and is not understood. It is left
-    visible rather than tuned away.
+    code, so this is specific to that row.
+
+    RESOLVED, and in favour of the 88.60 computed here. An independent
+    implementation reproduces it, and an earlier paper by two of the same
+    authors states "88.6 A for the HFD-B potential": Kolganova, Motovilov &
+    Sofianos, J. Phys. B 31, 1279 (1998), arXiv:physics/9612012, Sec. IV.
+
+    The 88.50 of [5] is kept as the target of this check, with a tolerance
+    spanning both, because what this check is for is the solver against a
+    published table -- not adjudicating between two published tables.
     """
     h2 = 12.12
     casos = [
@@ -878,6 +886,131 @@ def test_the_phase_shift_recovers_r0_and_leaves_a_fourth_order_term():
     potencia = (math.log(sobras[-1] / sobras[0])
                 / math.log(ks[-1] / ks[0]))
     assert 3.5 < potencia < 4.5, (potencia, sobras)
+
+
+def test_the_tabulated_effective_range_follows_from_c6_and_s_res():
+    """Table III's r_eff is not an independent input: it is predicted.
+
+    Nothing from Table III enters the prediction. The van der Waals length of
+    39K and the published s_res go in; Eqs. (31), (34) and (35) of Chin et al.
+    do the rest, with R* = abar/s_res following from their own definitions by
+    algebra. The tabulated r_eff then has to come out, and it does for four of
+    the five rows.
+
+    This is what makes p1(B), p2(B) possible without inventing r_eff(B).
+
+    The fifth row, 162.36 G, misses by 15%: its published r_eff implies
+    s_res = 1.02 where the paper prints 1.1. That row is anomalous in every
+    other measurement here too, so it is excluded by name rather than by
+    loosening the tolerance until it passes.
+    """
+    for row in etrych.TABLE_III:
+        previsto = etrych.effective_range(row["s_res"])
+        erro = abs(previsto - row["r_eff"]) / row["r_eff"]
+        if row["B_txt"] == "162.36":
+            assert erro > 0.10, (row["B_txt"], previsto, erro)
+            continue
+        assert erro < 0.02, (row["B_txt"], previsto, row["r_eff"], erro)
+
+
+def test_the_van_der_waals_effective_range_follows_its_closed_form_in_a():
+    """Eq. (34) of Chin et al. against this solver, across the whole family.
+
+    The resonance limit of that equation is what predicts the five tabulated
+    r_eff. Its a-DEPENDENCE is a separate claim, and Table III cannot test it:
+    one r_eff per resonance, all at |a| -> infinity. An earlier version of this
+    work therefore recorded the a-dependence as untested.
+
+    It is testable here. The Lennard-Jones has a van der Waals tail, so the
+    equation must describe ITS r0 as a function of a -- and that is a curve
+    this code already produces, at every ratio in the family. abar comes from
+    the potential's own C6: in these units 2 mu C6 / hbar^2 is the C6 the
+    constructor takes, so r_vdW = (1/2) C6^(1/4).
+
+    Measured from r0/a = -0.30 to +0.30, a changing by a factor of five and
+    changing sign: the prediction tracks the measured r0 to 8e-4 at worst.
+    """
+    G = math.gamma(0.25)
+    coef = G ** 4 / (6.0 * math.pi ** 2)
+    for alvo in (-0.30, -0.16, -0.06, 0.06, 0.16, 0.30):
+        C6, C12 = etrych.at_ratio("lj", alvo)
+        a, r0, nodes = lab.scattering(lab.LennardJones(C6, C12))
+        abar = 4.0 * math.pi / G ** 2 * 0.5 * C6 ** 0.25
+        x = abar / a
+        previsto = coef * abar * (1.0 - 2.0 * x + 2.0 * x * x)
+        assert abs(previsto / r0 - 1.0) < 2e-3, (alvo, previsto, r0)
+
+
+def test_the_effective_range_at_the_feature_is_not_the_tabulated_one():
+    """Where the Efimov feature sits, a is finite and r_eff is not its r_eff.
+
+    Table III's r_eff is the resonance value -- that is what the test above
+    confirms, since the prediction reproduces it in the a -> infinity limit.
+    But the feature sits at a = a_-, where Eq. (34) of Chin et al. says the
+    effective range is about a fifth larger, and at a = a_p about a fifth
+    smaller. The calibration pairs a finite-a scattering length with an
+    infinite-a effective range, and this records by how much.
+
+    NOT a validated correction: only the a -> infinity limit was checked
+    against published numbers. It is pinned here so that it cannot drift
+    unnoticed, and so that the size is on the record when the question of which
+    r_eff a three-body calculation should take is settled.
+    """
+    for row in etrych.TABLE_III:
+        na_ressonancia = etrych.effective_range(row["s_res"])
+        na_feicao = etrych.effective_range(row["s_res"], row["a_minus"])
+        assert na_feicao > na_ressonancia, row["B_txt"]
+        if row["B_txt"] != "162.36":
+            assert 0.15 < na_feicao / na_ressonancia - 1.0 < 0.30, row["B_txt"]
+
+        if row["a_p"] is not None:
+            positivo = etrych.effective_range(row["s_res"], row["a_p"])
+            assert -0.25 < positivo / na_ressonancia - 1.0 < -0.10, row["B_txt"]
+
+
+def test_the_shape_parameter_of_the_well_matches_its_closed_form():
+    """The k^4 coefficient, measured against the closed form, with nothing fit.
+
+    The power law above says the leftover is k^4 and gives its coefficient to
+    about two digits. That is a fit, and a fit can agree with the wrong thing.
+    shape_well is the same coefficient derived in closed form -- match
+    u = sin(Kr) onto k cot(kr + delta) at R with K^2 = 2v/R^2 + k^2, expand in
+    k, keep the fourth order -- so the two have no step in common beyond the
+    definition of the well itself.
+
+    Measured at the a_- point: 0.030085984 closed, 0.030085908 numerical.
+    """
+    v, mu = etrych.at_ratio("well", -0.16)
+    pot = lab.Well(v, mu)
+    a, r0, nodes = lab.scattering(pot)
+
+    fechada = lab.shape_well(v, 1.0 / mu) / r0 ** 3
+    medida = lab.shape_parameter(pot)
+    assert abs(medida / fechada - 1.0) < 1e-4, (fechada, medida)
+
+    # and it is not a tautology: the three other shapes share this well's a and
+    # r0 and land somewhere else entirely
+    outra = lab.shape_parameter(lab.POTENTIALS["mpt"](*etrych.at_ratio("mpt", -0.16)))
+    assert abs(outra - fechada) > 0.02, (fechada, outra)
+
+
+def test_only_the_van_der_waals_tail_departs_from_a_fourth_power():
+    """Which shapes have a shape PARAMETER at all, measured one by one.
+
+    Calling the leftover 'the k^4 term' presumes it is one. For the three
+    shapes whose tail dies fast it is: all three measure 4.000. The
+    Lennard-Jones measures near 3, and pushing the matching cut from 9R to 100R
+    does not move that, so it is the potential and not the method. Reported,
+    not explained -- the mechanism is not derived anywhere in this repository.
+    """
+    for nome in ("well", "mpt", "gauss"):
+        pot = lab.POTENTIALS[nome](*etrych.at_ratio(nome, -0.16))
+        p = lab.residual_power(pot)
+        assert abs(p - 4.0) < 0.05, (nome, p)
+
+    lj = lab.LennardJones(*etrych.at_ratio("lj", -0.16))
+    p = lab.residual_power(lj)
+    assert 2.5 < p < 3.5, p
 
 
 def test_four_shapes_sharing_a_and_r0_scatter_alike_at_finite_energy():
