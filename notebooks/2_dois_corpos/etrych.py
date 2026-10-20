@@ -133,6 +133,9 @@ def rescale(name, p1, p2, L):
 _UNIT = {}          # name -> (p1, p2) with 1/a = 0 and r0 = 1
 _RATIO = {}         # (name, r0/a) -> (p1, p2) with r0 = 1
 PASSO_MAXIMO = 0.075   # largest jump in r0/a a single tune() is asked to make
+TETO_RAZAO = 0.30      # widest |r0/a| the sweep in "families" was checked over;
+                       # a field far from resonance leaves it and is skipped
+                       # rather than extrapolated into untested ground
 
 
 def unit_solution(name):
@@ -204,6 +207,166 @@ def unitary(name, r_eff):
     """The unitary potential whose effective range is r_eff. No search."""
     p1, p2 = unit_solution(name)
     return rescale(name, p1, p2, r_eff)
+
+
+# =============================================================================
+#  The potential as a function of magnetic field
+#
+#  Whether p1(B) and p2(B) could be built was raised in review. The obstacle
+#  looked like r_eff: a(B) is the standard Feshbach form with published
+#  parameters, but r_eff near a resonance is tabulated at the resonance only,
+#  and interpolating it would have been an invention dressed as data.
+#
+#  It is not an invention, but it is a COMBINATION of two published results
+#  from different sources, and that is stated rather than blurred.
+#
+#  Open channel. The effective range of a van der Waals potential is known in
+#  closed form -- Eq. (34) of [7], credited there to Gao (1998) and to
+#  Flambaum, Gribakin & Harabati, Phys. Rev. A 59, 1998 (1999) --
+#
+#      r_open = [Gamma(1/4)^4 / 6 pi^2] abar (1 - 2 abar/a + 2 (abar/a)^2)
+#
+#  which at a >> abar is 2.9179 abar = 2.7895 r_vdW. abar = 4 pi / Gamma(1/4)^2
+#  times r_vdW is Eq. (31) of [7], due to Gribakin & Flambaum. NOTE: the arXiv
+#  text of [7] prints that denominator as 6 pi, but the value 2.9179 its own
+#  next sentence states requires 6 pi^2, and three other sources print 6 pi^2.
+#
+#  Closed channel. It subtracts 2 R*, with R* the resonance length. This is NOT
+#  in [7]: it is the zero-range two-channel result of [10]. The bridge to the
+#  table is R* = abar/s_res, which is Eq. (12) of [11] and which also follows by
+#  algebra from Eq. (35) of [7], s_res = (a_bg/abar)(delta_mu Delta / Ebar) with
+#  Ebar = hbar^2/2 mu abar^2 and R* = hbar^2/2 mu a_bg delta_mu Delta.
+#
+#  The SUM of a constant closed-channel term and an a-dependent open-channel
+#  one is the structure of Eq. (3) of [12], written there as
+#  r_e = -2 r* + 3 sigma (1 - 4 sigma / 3a) with sigma = abar. Their 3 comes
+#  from a separable model with a Lorentzian form factor, and they note it is
+#  close to the exact van der Waals 2.92; what is used here puts the exact
+#  coefficient in place of their 3. So the formula below is nobody's equation
+#  verbatim -- it is those pieces combined, which is why the check against the
+#  five published r_eff is not decoration.
+#
+#  CHECKED against the five rows of Table III, which were never used to build
+#  it: predicted 136.1, 136.1, 132.7, 67.9, 130.8 against the published 136,
+#  137, 135, 59, 132. Four rows inside 1.7%. The outlier is 162.36 G, whose
+#  published r_eff implies s_res = 1.02 against the 1.1 printed -- the same row
+#  that is anomalous in every other respect here.
+#
+#  WHAT IS STILL MISSING, and is not supplied by guessing: the closed-channel
+#  term is held constant in a, which follows [12], where it has no a-dependence;
+#  an alternative form carrying a factor (1 - a_bg/a)^2 exists in the literature
+#  and is criticised in [11] for sending r_eff to zero far from resonance. The
+#  Feshbach parameters below are from [9], not from [6], so the resonance
+#  positions differ from TABLE_III by up to 1 G. Replacing them with [6]'s own
+#  values is a transcription job, not a calculation. The sign of Delta follows
+#  the column heading of [8], which prints -Delta; it decides which SIDE of the
+#  resonance the Efimov feature falls on and not how far, so a_- cannot settle
+#  it and it is not asserted.
+#
+#  [7]  Chin, Grimm, Julienne & Tiesinga, Rev. Mod. Phys. 82, 1225 (2010),
+#       Eqs. (31), (34), (35).
+#  [8]  Tiecke, "Properties of Potassium", v1.0 (February 2010), Van der
+#       Waals-Zeeman Institute, University of Amsterdam, Tables 12 and 13.
+#       C6 = 3925.9 a.u. is credited there to Falke et al., Phys. Rev. A 78,
+#       012503 (2008); r_vdW = 64.61 a0 for 39K is from the same table.
+#  [9]  D'Errico, Zaccanti, Fattori, Roati, Inguscio, Modugno & Simoni,
+#       New J. Phys. 9, 223 (2007) -- the primary source of a_bg, B0 and Delta,
+#       which Table 13 of [8] reproduces.
+#  [10] Petrov, Phys. Rev. Lett. 93, 143201 (2004) -- r_e = -2 R*.
+#  [11] Blackley, Julienne & Hutson, Phys. Rev. A 89, 042701 (2014), Eq. (12).
+#  [12] Schmidt, Rath & Zwerger, Eur. Phys. J. B 85, 386 (2012), Eq. (3).
+# =============================================================================
+GAMMA_QUARTO = math.gamma(0.25)
+ABAR_SOBRE_RVDW = 4.0 * math.pi / GAMMA_QUARTO ** 2          # Eq. (31), 0.955978
+COEF_ALCANCE = GAMMA_QUARTO ** 4 / (6.0 * math.pi ** 2)      # Eq. (34), 2.917919
+
+# From [6] itself, not from a compilation. Table I of that paper tabulates the
+# PRODUCT a_bg * Delta for all five rows, and the zero crossing B_zero for
+# three of them; the resonance positions are the B_res of TABLE_III above.
+#
+# Only the product is needed near resonance: a(B) = a_bg - (a_bg Delta)/(B-B_res),
+# whose resonant term carries the product alone. Splitting it needs one more
+# number, and where [6] gives B_zero the split is exact and internal to that
+# paper, since a(B_zero) = 0 forces
+#
+#      Delta = B_zero - B_res ,        a_bg = (a_bg Delta) / Delta .
+#
+# This also settles the SIGN of Delta, which an earlier version of this file
+# could not and said so: B_zero < B_res on three rows gives Delta < 0, and with
+# a_bg < 0 the large negative a -- where the Efimov feature sits -- lies ABOVE
+# the resonance. Checked against the paper's own refined value: the 402.74 G row
+# gives a_bg = 1530/(350.4-402.74) = -29.2 a0 against the -29.3(3) it states.
+#
+# Two rows publish no zero crossing. There a_bg is taken from [9] via [8] and
+# Delta follows from the product, which is why those two carry fonte="[9]":
+# 33.5820 G gives Delta = +56.5 G against -Delta = -55 G in [9], and 162.36 G
+# gives Delta = -40 G against -Delta = +37 G. Both agree in sign and to within
+# the precision those tables carry.
+FESHBACH = {
+    "402.74":  {"abg_delta": 1530.0, "B_zero": 350.4, "fonte": "[6]"},
+    "472.33":  {"abg_delta": 2040.0, "B_zero": 393.2, "fonte": "[6]"},
+    "561.14":  {"abg_delta": 1660.0, "B_zero": 504.9, "fonte": "[6]"},
+    # no zero crossing published; a_bg from [9]
+    "33.5820": {"abg_delta": -1073.0, "a_bg": -19.0, "fonte": "[9]"},
+    "162.36":  {"abg_delta": 760.0,  "a_bg": -19.0, "fonte": "[9]"},
+}
+
+
+def feshbach(row):
+    """a_bg and Delta for one row, split as the sources allow.
+
+    Returns (a_bg, Delta, source). Where [6] publishes the zero crossing the
+    split is internal to that paper; otherwise a_bg comes from [9].
+    """
+    fb = FESHBACH[row["B_txt"]]
+    if "B_zero" in fb:
+        delta = fb["B_zero"] - row["B_res"]
+        return fb["abg_delta"] / delta, delta, fb["fonte"]
+    return fb["a_bg"], fb["abg_delta"] / fb["a_bg"], fb["fonte"]
+
+
+def abar(r_vdw=R_VDW):
+    """The mean scattering length.  Eq. (31) of [7]."""
+    return ABAR_SOBRE_RVDW * r_vdw
+
+
+def effective_range(s_res, a=None, r_vdw=R_VDW):
+    """r_eff from C6 and s_res, with no fit and no tabulated r_eff.
+
+    Open channel from Eq. (34) of [7], closed channel as -2 R* = -2 abar/s_res.
+    Passing a applies the a-dependence of the open-channel part; leaving it out
+    gives the resonance value, which is what Table III tabulates.
+    """
+    ab = abar(r_vdw)
+    if a is None or not math.isfinite(a):
+        aberto = COEF_ALCANCE * ab
+    else:
+        x = ab / a
+        aberto = COEF_ALCANCE * ab * (1.0 - 2.0 * x + 2.0 * x * x)
+    return aberto - 2.0 * ab / s_res
+
+
+def a_of_field(B, a_bg, delta, B0):
+    """a(B) = a_bg [1 - Delta/(B - B0)].  The standard single-resonance form."""
+    return a_bg * (1.0 - delta / (B - B0))
+
+
+def potential_vs_field(name, row, campos):
+    """p1(B) and p2(B) for one shape, across a field range.
+
+    Returns one record per field: B, a(B), r_eff(B) and the two parameters.
+    """
+    a_bg, delta, fonte = feshbach(row)
+    saida = []
+    for B in campos:
+        a = a_of_field(B, a_bg, delta, row["B_res"])
+        r_eff = effective_range(row["s_res"], a)
+        if not math.isfinite(a) or abs(r_eff / a) > TETO_RAZAO:
+            continue
+        p1, p2 = at_ratio(name, r_eff / a)
+        p1, p2 = rescale(name, p1, p2, r_eff)
+        saida.append({"B": B, "a": a, "r_eff": r_eff, "p1": p1, "p2": p2})
+    return saida
 
 
 def calibrate(name, row):
