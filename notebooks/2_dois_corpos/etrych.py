@@ -54,9 +54,11 @@ import lab
 #  a_p e^{j pi/s0}, with a_p = a_+ e^{pi/(2 s0)}, half an Efimov period above.
 #  Table III tabulates a_p, and the universal ratio the paper tests is
 #  a_p/a_- = -1, which is why the two columns have nearly equal magnitude.
-#  eta_minus is the Efimov width parameter of the same table: it encodes the
-#  lifetime of the trimers, and it is nonzero only when there are deeply
-#  bound dimers for them to decay into. See "the branch" below.
+#  eta_minus is the inelasticity parameter of the same table. It is NOT a decay
+#  rate and NOT a count of decay channels: it is fixed by the coupling into the
+#  deep channels, through an absorbing boundary condition at short hyperradius.
+#  It therefore does not select a branch of the potential. See "the branch"
+#  below, where that mistake is set out in full.
 #
 #  Both features are calibrated on -- calibrate() at a_- and calibrate_p() at
 #  a_p -- and the sweep in "families" below runs between them. The experiment
@@ -329,17 +331,37 @@ def sweep_c6_alone(inv_a_reduced):
 #  equivalent in three.
 #
 #  The reason is a decay channel. With deeply bound dimers in the spectrum an
-#  Efimov trimer can fall into one of them and release an atom, and the rate of
-#  that is what the Efimov width parameter eta measures. On the shallowest
-#  branch there are no deep dimers, no such channel, and eta would be exactly
-#  zero. Table III of [6] publishes eta_- for every row -- 0.27, 0.26, 0.25,
-#  0.5 and 0.33 -- so the measurement already rules the shallow branch out as
-#  a description of 39K, which carries dozens of deeply bound molecular states.
+#  Efimov trimer can fall into one of them and release an atom, which the
+#  shallowest branch has no way to do.
 #
-#  This makes the branch a testable choice rather than a convention: a
-#  three-body calculation on each branch can be compared against the published
-#  eta_-. The shallow branch is the control -- what zero-range universality
-#  alone would say -- and a branch with deep states is the realistic candidate.
+#  WHAT THIS DOES NOT DO is pick a branch out of Table III, and an earlier
+#  version of this comment claimed it did. The argument it made was: eta
+#  measures the rate of that decay, the shallow branch has no channel, so
+#  eta = 0 there, so the published eta_- rules that branch out. The second step
+#  is wrong. eta_* is not a rate. It is a dimensionless inelasticity parameter,
+#  fixed by an absorbing boundary condition at short hyperradius -- Eq. (248)
+#  of [9] writes the reflected and incident amplitudes as A = -e^{-2 eta_* +
+#  2 i theta_*} B, and Eq. (252) gives the transition probability into the deep
+#  channels as sum_X |t_X1|^2 = 1 - e^{-4 eta_*}. So eta_* is set by the
+#  COUPLING to those channels, not by how many of them exist. The trimer's
+#  energy width Gamma_T is a different quantity again, related to eta_* in
+#  Eqs. (257)-(259); the decay rate is Gamma_T/hbar, and Eq. (271) is where
+#  eta_* enters the recombination coefficient for a < 0, which is what the
+#  experimental eta_- actually comes from.
+#
+#  Counting two-body bound states therefore predicts no eta at all. "eta = 0 on
+#  the shallow branch" survives only as a statement about a conservative model
+#  with no deep channels and no other loss, and the deep dimers need not be
+#  carried explicitly for a realistic one: an absorbing boundary condition does
+#  the same work. Comparing branches against Table III would mean computing the
+#  three-body transitions into the deep channels on each.
+#
+#  So the branch is still a real ambiguity, still invisible to two-body
+#  scattering, and still something a three-body calculation has to choose. It
+#  is simply not settled by the eta_- column.
+#
+#  [9] Braaten & Hammer, Phys. Rep. 428, 259 (2006), Eqs. (248), (252),
+#      (257)-(259) and (271).
 #
 #  Measured for the square well at a_- = -830, r_eff = 136 a0: the three
 #  branches have nearly the same range (128.0, 136.2 and 136.9 a0) and very
